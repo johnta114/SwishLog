@@ -2,21 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 class StatsEntryScreen extends StatefulWidget {
-  const StatsEntryScreen({super.key});
+  final String opponentName;
+  final List<String> starters;
+  final List<String> bench;
+
+  const StatsEntryScreen({
+    super.key,
+    required this.opponentName,
+    required this.starters,
+    required this.bench,
+  });
 
   @override
   State<StatsEntryScreen> createState() => _StatsEntryScreenState();
 }
 
 class _StatsEntryScreenState extends State<StatsEntryScreen> {
-  // 選手データ
-  final List<String> _activePlayers = ['タロウ', 'ジロウ', 'ケン', 'リョウ', 'ショウ'];
-  final List<String> _benchPlayers = ['シロー', 'ゴロウ', 'ハチロー', 'キュウ'];
-  String _selectedPlayer = 'タロウ';
+  // 選手データ（前画面から受け取ったスタメンとベンチをセット）
+  late List<String> _activePlayers;
+  late List<String> _benchPlayers;
+  late String _selectedPlayer;
 
   // 試合の全スタッツログ
   final List<StatRecord> _logs = [];
   final _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    // 受け取ったリストを元に状態を初期化
+    _activePlayers = List.from(widget.starters);
+    _benchPlayers = List.from(widget.bench);
+    _selectedPlayer = _activePlayers.isNotEmpty ? _activePlayers.first : '';
+  }
 
   // 直前のアクションを取り消す（Undo）
   void _undoLastAction() {
@@ -244,26 +262,24 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // YouTubeアプリのようにアプリ名を左側に配置
         title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: false,
         toolbarHeight: 48,
-        // アクションボタン（Undoやログ）はここから削除し、ログバーへ移動
       ),
       body: Column(
         children: [
-          // 1. スコア表示（対戦相手の情報もここへ集約）
+          // 1. スコア表示（前画面で選んだ対戦相手の名前を動的に表示）
           Container(
             padding: const EdgeInsets.symmetric(vertical: 4),
             color: Colors.white,
-            child: const Column(
+            child: Column(
               children: [
-                Text('vs 〇〇高校', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                Row(
+                Text('vs ${widget.opponentName}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text('MY TEAM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text('24 - 20', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.deepOrange)),
+                    Text('0 - 0', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.deepOrange)),
                     Text('OPPONENT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 ),
@@ -288,7 +304,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // 追加: アンドゥボタン
                 IconButton(
                   icon: const Icon(Icons.undo, size: 20, color: Colors.black87),
                   padding: EdgeInsets.zero,
@@ -297,7 +312,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                   tooltip: '直前を取り消す'
                 ),
                 const SizedBox(width: 16),
-                // 追加: ログ一覧ボタン
                 IconButton(
                   icon: const Icon(Icons.list_alt, size: 20, color: Colors.black87),
                   padding: EdgeInsets.zero,
@@ -310,7 +324,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             ),
           ),
 
-          // 3. コート図（ゴールが「上」になるように描画を修正）
+          // 3. コート図
           Expanded(
             child: Center(
               child: AspectRatio(
@@ -337,7 +351,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             ),
           ),
 
-          // 4. アクションボタン群（日本語表記・すべて同じサイズの2行）
+          // 4. アクションボタン群
           Container(
             padding: const EdgeInsets.all(4.0),
             color: Colors.white,
@@ -479,12 +493,10 @@ class CourtPainter extends CustomPainter {
     const double halfCourtLengthM = 14.0; 
     final double scale = size.width / courtWidthM;
 
-    // 今回はゴールが上（Y=0がベースライン）になるように描画
     Offset mToPx(double x, double y) {
-      return Offset(x * scale, y * scale); // offsetYを削除し、Yをそのまま使用
+      return Offset(x * scale, y * scale);
     }
 
-    // 1. ペイントエリア（制限区域: 幅4.9m x 縦5.8m）
     final keyRect = Rect.fromLTRB(
       mToPx((15.0 - 4.9) / 2, 0).dx,
       mToPx((15.0 - 4.9) / 2, 0).dy,
@@ -493,15 +505,10 @@ class CourtPainter extends CustomPainter {
     );
     canvas.drawRect(keyRect, paintLine);
 
-    // 2. フリースローサークル (中心Y=5.8m、半径1.8m)
     final ftCenter = mToPx(7.5, 5.8);
-    // 完全な円を描画（ベースはこれでOK）
     canvas.drawArc(Rect.fromCircle(center: ftCenter, radius: 1.8 * scale), 0, 3.1415 * 2, false, paintLine);
 
-    // 3. ゴールリングとバックボード
-    // ゴール中心はベースラインから1.575m
     final hoopCenter = mToPx(7.5, 1.575);
-    // バックボードはベースラインから1.2m
     canvas.drawLine(
       mToPx(7.5 - 0.9, 1.2), 
       mToPx(7.5 + 0.9, 1.2), 
@@ -511,28 +518,20 @@ class CourtPainter extends CustomPainter {
     paintLine.color = Colors.black54;
     paintLine.strokeWidth = 2.0;
 
-    // 4. ノーチャージ・セミサークル (半径1.25m)
     final ncRect = Rect.fromCircle(center: hoopCenter, radius: 1.25 * scale);
-    // ゴールの前（Yが増加する方向＝画面下方向）に半円を描く。Flutterの0は右(3時)、pi(180度)は時計回り。
     canvas.drawArc(ncRect, 0, 3.1415, false, paintLine);
 
-    // 5. スリーポイントライン
     final path3p = Path();
-    // サイドラインから0.9m離れた直線（ベースライン Y=0 から長さ2.99m）
     path3p.moveTo(mToPx(0.9, 0).dx, mToPx(0.9, 0).dy);
     path3p.lineTo(mToPx(0.9, 2.99).dx, mToPx(0.9, 2.99).dy);
-    // リング中心から半径6.75mの円弧で逆サイドまで繋ぐ
-    // 左(9時方向)から下を通って右(3時方向)へ進むため、反時計回り（clockwise: false）
     path3p.arcToPoint(
       mToPx(14.1, 2.99), 
       radius: Radius.circular(6.75 * scale), 
       clockwise: false
     );
-    // 逆サイドの直線
     path3p.lineTo(mToPx(14.1, 0).dx, mToPx(14.1, 0).dy);
     canvas.drawPath(path3p, paintLine);
 
-    // 記録されたシュート(FG)ログを描画
     for (var log in logs.where((e) => e.actionId == 'FG' && e.x != null && e.y != null)) {
       final dotPaint = Paint()
         ..color = log.isMade == true ? Colors.deepOrange : Colors.grey

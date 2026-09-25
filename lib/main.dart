@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/stats_entry_screen.dart';
-import 'screens/players_screen.dart'; // 追加
+import 'screens/games_screen.dart'; // 追加
+import 'screens/players_screen.dart'; 
 
 void main() {
   runApp(const SwishLogApp());
@@ -11,16 +11,15 @@ class SwishLogApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ライトテーマ ＋ 深みのあるオレンジ のカラー設定
     return MaterialApp(
       title: 'SwishLog',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepOrange, // テーマカラー：深いオレンジ
+          seedColor: Colors.deepOrange,
           brightness: Brightness.light,
-          surface: const Color(0xFFF8F9FA), // 背景色：薄いグレー
-          onSurface: const Color(0xFF333333), // 文字色：目に優しいダークグレー
+          surface: const Color(0xFFF8F9FA), 
+          onSurface: const Color(0xFF333333), 
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.deepOrange,
@@ -46,8 +45,8 @@ class _MainScreenState extends State<MainScreen> {
 
   // 各タブの画面
   final List<Widget> _screens = [
-    const StatsEntryScreen(), 
-    const PlayersScreen(), // モックから実際の画面に置き換え
+    const GamesScreen(), // 1つ目のタブを「試合一覧画面」に！
+    const PlayersScreen(), 
     const StatsScreenPlaceholder(),
   ];
 

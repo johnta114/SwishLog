@@ -1,17 +1,25 @@
-# swishlog
+# SwishLog 🏀
 
-A new Flutter project.
+完全オフラインで動作し、片手操作に最適化されたバスケットボールのスタッツ・ショットチャート記録アプリです。
 
-## Getting Started
+## アプリの概要
+「試合を見ながら、手元を見ずに直感的に記録できる」ことをコンセプトに設計されています。電波の届きにくい体育館での使用を想定し、全てのデータは端末内のローカルデータベース（SQLite）に保存されます。
 
-This project is a starting point for a Flutter application.
+## 主な特徴
+* **究極の片手操作UI**: 親指の可動域（画面下部）にアクションボタンや選手選択を集約し、直感的な入力が可能。
+* **正確なショットチャート**: FIBA公式寸法の比率を再現したコート図を搭載。タップするだけでシュート位置と結果を記録。
+* **U12（ミニバス）対応**: スリーポイントシュートが適用されないU12ルールでの試合記録にも完全対応。
+* **シーズン・ロスター管理**: 年度やシーズンごとに変わる選手の「背番号」の履歴を正確に管理・保持。
+* **直前アクションの修正**: 入力ミスをワンタップで消せるUndo機能と、ログ一覧からの修正機能を完備。
 
-A few resources to get you started if this is your first Flutter project:
+## 技術スタック
+* **Framework**: Flutter
+* **Database**: SQLite (`sqflite`)
+* **State Management**: `provider` (予定)
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 開発の始め方
+依存関係のインストール後、以下のコマンドで起動できます。
+```bash
+flutter pub get
+flutter run
+```
