@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/games_screen.dart'; // 追加
-import 'screens/players_screen.dart'; 
+import 'screens/games_screen.dart'; 
+import 'screens/season_roster_screen.dart'; // 統合されたチーム管理画面
 
 void main() {
   runApp(const SwishLogApp());
@@ -45,9 +45,9 @@ class _MainScreenState extends State<MainScreen> {
 
   // 各タブの画面
   final List<Widget> _screens = [
-    const GamesScreen(), // 1つ目のタブを「試合一覧画面」に！
-    const PlayersScreen(), 
-    const StatsScreenPlaceholder(),
+    const GamesScreen(), // 1. 試合一覧
+    const SeasonRosterScreen(), // 2. チーム・名簿管理
+    const StatsScreenPlaceholder(), // 3. 分析画面用（現在はプレースホルダー）
   ];
 
   @override
