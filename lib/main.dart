@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/games_screen.dart'; 
-import 'screens/season_roster_screen.dart'; // 統合されたチーム管理画面
+import 'screens/season_roster_screen.dart';
+import 'screens/opponent_teams_screen.dart'; // 追加
+import 'screens/analytics_screen.dart'; 
 
 void main() {
   runApp(const SwishLogApp());
@@ -43,91 +45,46 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  // 各タブの画面
+  // 各タブの画面（4つに拡張）
   final List<Widget> _screens = [
-    const GamesScreen(), // 1. 試合一覧
-    const SeasonRosterScreen(), // 2. チーム・名簿管理
-    const StatsScreenPlaceholder(), // 3. 分析画面用（現在はプレースホルダー）
+    const GamesScreen(),         // 1. 試合一覧
+    const SeasonRosterScreen(),  // 2. チーム・名簿管理
+    const OpponentTeamsScreen(), // 3. 対戦相手管理
+    const AnalyticsScreen(),     // 4. 分析・振り返り画面
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.sports_basketball_outlined),
-            selectedIcon: Icon(Icons.sports_basketball),
+        type: BottomNavigationBarType.fixed, // 4つ以上の場合はfixedにしないと見た目が崩れる
+        selectedItemColor: Colors.deepOrange,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.sports_basketball),
             label: '試合',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: '選手',
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'チーム管理',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: '成績',
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shield),
+            label: '対戦相手',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: '分析',
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// プレースホルダー画面（後ほど個別のファイルに切り出します）
-// ==========================================
-
-class GamesScreenPlaceholder extends StatelessWidget {
-  const GamesScreenPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('試合一覧')),
-      body: const Center(
-        child: Text('ここに試合の一覧と\n新規試合追加ボタンが並びます', textAlign: TextAlign.center),
-      ),
-    );
-  }
-}
-
-class PlayersScreenPlaceholder extends StatelessWidget {
-  const PlayersScreenPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('選手管理')),
-      body: const Center(
-        child: Text('ここに選手一覧が並びます\n（※基本はコートネームで表示）', textAlign: TextAlign.center),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.person_add),
-      ),
-    );
-  }
-}
-
-class StatsScreenPlaceholder extends StatelessWidget {
-  const StatsScreenPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('通算成績・分析')),
-      body: const Center(
-        child: Text('ここにチームや個人の\n通算スタッツやグラフが表示されます', textAlign: TextAlign.center),
       ),
     );
   }
