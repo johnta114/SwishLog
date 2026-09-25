@@ -18,7 +18,6 @@ class DatabaseHelper {
     final dbPath = await getApplicationDocumentsDirectory();
     final path = join(dbPath.path, filePath);
 
-    // 開発中のため、テーブル構造が変わった場合はバージョンを上げるか、再インストールが必要です。
     return await openDatabase(
       path,
       version: 1,
@@ -66,11 +65,13 @@ class DatabaseHelper {
     )
     ''');
 
-    // 4. 対戦相手チーム管理
+    // 4. 対戦相手チーム管理（都道府県・監督連絡先を追加）
     await db.execute('''
     CREATE TABLE opponent_teams (
       id $idType,
-      name $textType
+      name $textType,
+      prefecture TEXT,
+      coach_contact TEXT
     )
     ''');
 
@@ -85,13 +86,14 @@ class DatabaseHelper {
     )
     ''');
 
-    // 6. 試合管理（video_url を追加）
+    // 6. 試合管理（U12フラグを追加）
     await db.execute('''
     CREATE TABLE games (
       id $idType,
       season_id TEXT NOT NULL,
       date $textType,
       opponent_team_id TEXT NOT NULL,
+      is_u12 INTEGER NOT NULL DEFAULT 0,
       opp_score_q1 INTEGER DEFAULT 0,
       opp_score_q2 INTEGER DEFAULT 0,
       opp_score_q3 INTEGER DEFAULT 0,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/stats_entry_screen.dart';
+import 'screens/players_screen.dart'; // 追加
 
 void main() {
   runApp(const SwishLogApp());
@@ -43,10 +44,10 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  // 各タブの画面（現在はプレースホルダー）
+  // 各タブの画面
   final List<Widget> _screens = [
-    const StatsEntryScreen(), // モック画面をここに設定
-    const PlayersScreenPlaceholder(),
+    const StatsEntryScreen(), 
+    const PlayersScreen(), // モックから実際の画面に置き換え
     const StatsScreenPlaceholder(),
   ];
 
