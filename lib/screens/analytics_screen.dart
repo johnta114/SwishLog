@@ -1,165 +1,240 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../database/database_helper.dart';
 
 class AnalyticsScreen extends StatefulWidget {
+  final String? gameId;
   final String? gameTitle;
 
-  const AnalyticsScreen({super.key, this.gameTitle});
+  const AnalyticsScreen({super.key, this.gameId, this.gameTitle});
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  final List<String> _filters = ['チーム全体 (2026年度)', 'タロウ (個人)', 'ジロウ (個人)'];
-  late String _selectedFilter;
+  bool _isLoading = true;
+  int _selectedQuarter = 0; // 0 = 全体
   
-  final List<String> _quarters = ['全体', '1Q', '2Q', '3Q', '4Q'];
-  String _selectedQuarter = '全体';
-
+  List<Map<String, dynamic>> _rawStats = [];
   String? _youtubeUrl;
 
   @override
   void initState() {
     super.initState();
-    if (widget.gameTitle != null) {
-      final gameFilter = 'vs ${widget.gameTitle}';
-      if (!_filters.contains(gameFilter)) {
-        _filters.insert(0, gameFilter);
-      }
-      _selectedFilter = gameFilter;
-    } else {
-      _selectedFilter = _filters.first;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    // SQLiteからスタッツデータと試合情報を取得
+    final stats = await DatabaseHelper.instance.getRawStats(
+      gameId: widget.gameId, 
+      quarter: _selectedQuarter > 0 ? _selectedQuarter : null
+    );
+    
+    if (widget.gameId != null) {
+      final gameData = await DatabaseHelper.instance.getGameById(widget.gameId!);
+      _youtubeUrl = gameData?['video_url'];
+    }
+
+    if (mounted) {
+      setState(() {
+        _rawStats = stats;
+        _isLoading = false;
+      });
     }
   }
 
-  void _showYoutubeDialog() {
+  void _updateQuarter(int q) {
+    setState(() => _selectedQuarter = q);
+    _loadData();
+  }
+
+  // 生スタッツデータから個人成績を計算
+  List<Map<String, dynamic>> get _aggregatedPlayerStats {
+    Map<String, Map<String, dynamic>> agg = {};
+    
+    for (var s in _rawStats) {
+      final pid = s['player_id'].toString();
+      final name = s['court_name'] ?? s['last_name'];
+      
+      if (!agg.containsKey(pid)) {
+        agg[pid] = {'name': name, 'PTS': 0, 'REB': 0, 'AST': 0, 'STL': 0, 'TO': 0, 'PF': 0, 'FGM': 0, 'FGA': 0, '3PM': 0, '3PA': 0};
+      }
+      
+      final type = s['stat_type'];
+      final isMade = s['is_made'] == 1;
+      
+      if (type == '2P' || type == '3P' || type == 'FG') {
+        agg[pid]!['FGA'] = (agg[pid]!['FGA'] as int) + 1;
+        if (isMade) {
+          agg[pid]!['FGM'] = (agg[pid]!['FGM'] as int) + 1;
+          agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + (type == '3P' ? 3 : 2);
+        }
+        if (type == '3P') {
+           agg[pid]!['3PA'] = (agg[pid]!['3PA'] as int) + 1;
+           if (isMade) agg[pid]!['3PM'] = (agg[pid]!['3PM'] as int) + 1;
+        }
+      } else if (type == 'FT') {
+        if (isMade) agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + 1;
+      } else if (type == 'REB') {
+        agg[pid]!['REB'] = (agg[pid]!['REB'] as int) + 1;
+      } else if (type == 'AST') {
+        agg[pid]!['AST'] = (agg[pid]!['AST'] as int) + 1;
+      } else if (type == 'STL') {
+        agg[pid]!['STL'] = (agg[pid]!['STL'] as int) + 1;
+      } else if (type == 'TO') {
+        agg[pid]!['TO'] = (agg[pid]!['TO'] as int) + 1;
+      } else if (type == 'PF') {
+        agg[pid]!['PF'] = (agg[pid]!['PF'] as int) + 1;
+      }
+    }
+    
+    final list = agg.values.toList();
+    list.sort((a, b) => (b['PTS'] as int).compareTo(a['PTS'] as int));
+    return list;
+  }
+
+  void _showYouTubeDialog() {
     final ctrl = TextEditingController(text: _youtubeUrl);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('YouTubeリンクを登録', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(hintText: 'https://youtube.com/...', border: OutlineInputBorder()),
-          keyboardType: TextInputType.url,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('キャンセル', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _youtubeUrl = ctrl.text.isEmpty ? null : ctrl.text);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('保存', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("YouTubeリンクの登録"),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(hintText: "https://youtu.be/...", border: OutlineInputBorder()),
           ),
-        ],
-      )
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("キャンセル")),
+            ElevatedButton(
+              onPressed: () async {
+                if (widget.gameId != null) {
+                  await DatabaseHelper.instance.updateGameVideoUrl(widget.gameId!, ctrl.text);
+                  setState(() => _youtubeUrl = ctrl.text);
+                }
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text("保存"),
+            )
+          ],
+        );
+      }
     );
   }
 
-  // モックデータたち
-  final List<Map<String, dynamic>> _mockShots = [
-    {'x': 0.5, 'y': 0.12, 'made': true}, {'x': 0.48, 'y': 0.10, 'made': true},
-    {'x': 0.52, 'y': 0.15, 'made': false}, {'x': 0.2, 'y': 0.25, 'made': true},
-    {'x': 0.8, 'y': 0.25, 'made': false}, {'x': 0.5, 'y': 0.40, 'made': true},
-    {'x': 0.7, 'y': 0.12, 'made': true}, {'x': 0.3, 'y': 0.10, 'made': false},
-    {'x': 0.6, 'y': 0.35, 'made': false}, {'x': 0.4, 'y': 0.35, 'made': true},
-    {'x': 0.5, 'y': 0.55, 'made': true},
-  ];
-
-  final List<Map<String, dynamic>> _playerStats = [
-    {'name': 'タロウ', 'pts': 15, 'reb': 4, 'ast': 5, 'stl': 2},
-    {'name': 'ジロウ', 'pts': 12, 'reb': 2, 'ast': 1, 'stl': 1},
-    {'name': 'ショウ', 'pts': 8, 'reb': 10, 'ast': 0, 'stl': 0},
-    {'name': 'ケン', 'pts': 6, 'reb': 3, 'ast': 2, 'stl': 3},
-    {'name': 'リョウ', 'pts': 4, 'reb': 5, 'ast': 1, 'stl': 0},
-  ];
-
-  final List<Map<String, String>> _gameLogs = [
-    {'q': '4Q', 'time': '00:15', 'log': 'タロウ - 3Pシュート (成功)'},
-    {'q': '4Q', 'time': '01:30', 'log': 'ケン - リバウンド'},
-    {'q': '4Q', 'time': '02:45', 'log': '相手 - シュート (成功)'},
-    {'q': '3Q', 'time': '05:10', 'log': 'ジロウ - ターンオーバー'},
-    {'q': '3Q', 'time': '08:20', 'log': 'ショウ - ファウル'},
-    {'q': '2Q', 'time': '03:15', 'log': 'リョウ - フリースロー (成功)'},
-    {'q': '1Q', 'time': '09:45', 'log': 'タロウ - シュート (成功)'},
-  ];
-
-  bool get isGameSpecific => _selectedFilter.startsWith('vs ');
+  Future<void> _launchYouTube() async {
+    if (_youtubeUrl != null && _youtubeUrl!.isNotEmpty) {
+      final uri = Uri.parse(_youtubeUrl!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("URLを開けませんでした")));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!isGameSpecific) {
-      // 特定の試合以外（全体や個人の通算成績）を見ている場合
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('SwishLog - 分析', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          centerTitle: false,
-        ),
-        body: Column(
+    final isGameSpecific = widget.gameId != null;
+
+    final Widget body = _isLoading 
+      ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+      : Column(
           children: [
-            _buildFilterHeader(),
-            const Divider(height: 1),
-            Expanded(child: _buildStatsView()),
+            _buildHeaderFilters(isGameSpecific),
+            Expanded(
+              child: isGameSpecific
+                ? TabBarView(
+                    children: [
+                      _buildStatsTab(),
+                      _buildPlayLogsTab(),
+                    ],
+                  )
+                : _buildStatsTab(),
+            ),
           ],
+        );
+
+    final appBar = AppBar(
+      title: Text(
+        widget.gameTitle != null ? "分析: ${widget.gameTitle}" : "シーズン全体分析",
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+      ),
+      bottom: isGameSpecific
+        ? const TabBar(
+            indicatorColor: Colors.deepOrange,
+            labelColor: Colors.deepOrange,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              Tab(icon: Icon(Icons.bar_chart), text: "スタッツ"),
+              Tab(icon: Icon(Icons.history), text: "試合ログ"),
+            ],
+          )
+        : null,
+    );
+
+    if (isGameSpecific) {
+      return DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: appBar,
+          body: body,
         ),
       );
+    } else {
+      return Scaffold(
+        appBar: appBar,
+        body: body,
+      );
     }
-
-    // 特定の試合を見ている場合（YouTubeと試合ログを表示）
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('SwishLog - 分析', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          centerTitle: false,
-        ),
-        body: Column(
-          children: [
-            _buildFilterHeader(),
-            const Divider(height: 1),
-            _buildYoutubeTile(),
-            const TabBar(
-              labelColor: Colors.deepOrange,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.deepOrange,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold),
-              tabs: [Tab(text: 'スタッツ分析'), Tab(text: '試合ログ')],
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildStatsView(),
-                  _buildLogsView(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
-  Widget _buildFilterHeader() {
+  Widget _buildHeaderFilters(bool isGameSpecific) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+      child: Column(
         children: [
-          const Icon(Icons.bar_chart, color: Colors.deepOrange),
-          const SizedBox(width: 12),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedFilter,
-                isExpanded: true,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                items: _filters.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedFilter = val);
-                },
-              ),
+          if (isGameSpecific)
+            Row(
+              children: [
+                const Icon(Icons.play_circle_fill, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: _youtubeUrl != null && _youtubeUrl!.isNotEmpty ? _launchYouTube : _showYouTubeDialog,
+                    child: Text(
+                      _youtubeUrl != null && _youtubeUrl!.isNotEmpty ? "試合映像を見る" : "試合映像(YouTube)のリンクを登録",
+                      style: TextStyle(color: Colors.blue.shade700, decoration: TextDecoration.underline, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: _showYouTubeDialog,
+                  tooltip: "リンクを編集",
+                )
+              ],
+            ),
+          if (isGameSpecific) const Divider(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip("全体", 0),
+                const SizedBox(width: 8),
+                _buildFilterChip("1Q", 1),
+                const SizedBox(width: 8),
+                _buildFilterChip("2Q", 2),
+                const SizedBox(width: 8),
+                _buildFilterChip("3Q", 3),
+                const SizedBox(width: 8),
+                _buildFilterChip("4Q", 4),
+              ],
             ),
           ),
         ],
@@ -167,112 +242,57 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildYoutubeTile() {
-    return Container(
-      color: Colors.white,
-      child: ListTile(
-        leading: const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 36),
-        title: Text(
-          _youtubeUrl ?? 'YouTube動画を登録する',
-          style: TextStyle(
-            color: _youtubeUrl == null ? Colors.grey : Colors.blue,
-            fontWeight: FontWeight.bold,
-            decoration: _youtubeUrl != null ? TextDecoration.underline : null,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: const Text('タップして試合動画のリンクを編集'),
-        onTap: _showYoutubeDialog,
-        trailing: const Icon(Icons.edit, size: 16, color: Colors.grey),
+  Widget _buildFilterChip(String label, int value) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _selectedQuarter == value,
+      onSelected: (selected) {
+        if (selected) _updateQuarter(value);
+      },
+      selectedColor: Colors.deepOrange.shade100,
+      labelStyle: TextStyle(
+        color: _selectedQuarter == value ? Colors.deepOrange.shade900 : Colors.black87,
+        fontWeight: _selectedQuarter == value ? FontWeight.bold : FontWeight.normal,
       ),
     );
   }
 
-  Widget _buildStatsView() {
+  Widget _buildStatsTab() {
+    final shots = _rawStats.where((s) => (s['stat_type'] == '2P' || s['stat_type'] == '3P' || s['stat_type'] == 'FG') && s['pos_x'] != null).toList();
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. シュート分布図（ヒートマップ風）
           Container(
-            color: Colors.grey.shade50,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: _quarters.map((q) {
-                  final isSelected = _selectedQuarter == q;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(q, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
-                      selected: isSelected,
-                      selectedColor: Colors.deepOrange,
-                      backgroundColor: Colors.white,
-                      showCheckmark: false,
-                      onSelected: (selected) {
-                        if (selected) setState(() => _selectedQuarter = q);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+            width: double.infinity,
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('$_selectedQuarter の主要スタッツ', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                const Text("シュート分布 (FG/3P)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
                 Row(
-                  children: [
-                    _buildStatCard('得点', '45.0', 'PTS'),
-                    const SizedBox(width: 8),
-                    _buildStatCard('2P 成功率', '48%', '12/25'),
-                    const SizedBox(width: 8),
-                    _buildStatCard('3P 成功率', '33%', '4/12'),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildStatCard('リバウンド', '24.0', 'REB'),
-                    const SizedBox(width: 8),
-                    _buildStatCard('アシスト', '9.0', 'AST'),
-                    const SizedBox(width: 8),
-                    _buildStatCard('ターンオーバー', '5.5', 'TO'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              children: [
-                Text('$_selectedQuarter のショット分布', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                const SizedBox(height: 4),
-                const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.circle, color: Colors.deepOrange, size: 12), SizedBox(width: 4), Text('成功', style: TextStyle(fontSize: 12)),
-                    SizedBox(width: 16),
-                    Icon(Icons.circle, color: Colors.blueGrey, size: 12), SizedBox(width: 4), Text('失敗', style: TextStyle(fontSize: 12)),
+                    Container(width: 12, height: 12, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.deepOrange)),
+                    const SizedBox(width: 4), const Text("Made", style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Container(width: 12, height: 12, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey)),
+                    const SizedBox(width: 4), const Text("Miss", style: TextStyle(fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Center(
-                  child: FractionallySizedBox(
-                    widthFactor: 0.85, 
-                    child: AspectRatio(
-                      aspectRatio: 15.0 / 14.0,
-                      child: Container(
-                        decoration: BoxDecoration(color: const Color(0xFFF6E8D7), border: Border.all(color: Colors.black54, width: 2)),
-                        child: CustomPaint(painter: AnalysisCourtPainter(_mockShots)),
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  child: AspectRatio(
+                    aspectRatio: 15.0 / 14.0,
+                    child: Container(
+                      decoration: const BoxDecoration(color: Color(0xFFF6E8D7), border: Border(bottom: BorderSide(color: Colors.black54, width: 2))),
+                      child: CustomPaint(
+                        painter: AnalysisCourtPainter(shots),
                       ),
                     ),
                   ),
@@ -280,131 +300,143 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ],
             ),
           ),
+          
+          // 2. 個人成績ランキング・スタッツ
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$_selectedQuarter の個人成績', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: DataTable(
-                      headingRowColor: MaterialStateProperty.all(Colors.deepOrange.shade50),
-                      columnSpacing: 20,
-                      columns: const [
-                        DataColumn(label: Text('選手', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataColumn(label: Text('PTS', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                        DataColumn(label: Text('REB', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                        DataColumn(label: Text('AST', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                        DataColumn(label: Text('STL', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      ],
-                      rows: _playerStats.map((stat) {
-                        return DataRow(cells: [
-                          DataCell(Text(stat['name'], style: const TextStyle(fontWeight: FontWeight.bold))),
-                          DataCell(Text('${stat['pts']}')),
-                          DataCell(Text('${stat['reb']}')),
-                          DataCell(Text('${stat['ast']}')),
-                          DataCell(Text('${stat['stl']}')),
-                        ]);
-                      }).toList(),
-                    ),
+                const Text("個人スタッツ一覧", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 16,
+                    headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
+                    columns: const [
+                      DataColumn(label: Text("選手", style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("PTS", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                      DataColumn(label: Text("REB", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                      DataColumn(label: Text("AST", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                      DataColumn(label: Text("STL", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                      DataColumn(label: Text("TO", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                      DataColumn(label: Text("FG%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                    ],
+                    rows: _aggregatedPlayerStats.map((p) {
+                      final fga = p['FGA'] as int;
+                      final fgm = p['FGM'] as int;
+                      final fgPct = fga > 0 ? ((fgm / fga) * 100).toStringAsFixed(1) : "0.0";
+                      
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(p['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold))),
+                          DataCell(Text("${p['PTS']}")),
+                          DataCell(Text("${p['REB']}")),
+                          DataCell(Text("${p['AST']}")),
+                          DataCell(Text("${p['STL']}")),
+                          DataCell(Text("${p['TO']}")),
+                          DataCell(Text("$fgPct%")),
+                        ],
+                      );
+                    }).toList(),
                   ),
-                ),
-                const SizedBox(height: 40),
+                )
               ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildLogsView() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _gameLogs.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final log = _gameLogs[index];
-        final bool isMade = log['log']!.contains('成功');
-        return ListTile(
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(8)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(log['q']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
-                Text(log['time']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.blueGrey)),
-              ],
-            ),
-          ),
-          title: Text(log['log']!, style: TextStyle(fontWeight: isMade ? FontWeight.bold : FontWeight.normal)),
-          trailing: isMade ? const Icon(Icons.star, color: Colors.orange, size: 20) : null,
-        );
-      },
-    );
-  }
+  Widget _buildPlayLogsTab() {
+    return _rawStats.isEmpty 
+      ? const Center(child: Text("この試合・クォーターの記録はありません"))
+      : ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _rawStats.length,
+          itemBuilder: (context, index) {
+            final stat = _rawStats[index];
+            final name = stat['court_name'] ?? stat['last_name'];
+            final action = stat['stat_type'];
+            final isMade = stat['is_made'] == 1;
+            
+            String label = action;
+            Color iconColor = Colors.grey;
+            IconData icon = Icons.sports_basketball;
 
-  Widget _buildStatCard(String title, String mainValue, String subValue) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]),
-        child: Column(
-          children: [
-            Text(title, style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(mainValue, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
-            const SizedBox(height: 2),
-            Text(subValue, style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
-          ],
-        ),
-      ),
-    );
+            if (action == '2P' || action == '3P' || action == 'FT') {
+              label = "$action ${isMade ? '成功' : '失敗'}";
+              iconColor = isMade ? Colors.deepOrange : Colors.grey;
+            } else if (action == 'REB') {
+              label = "リバウンド"; iconColor = Colors.blue; icon = Icons.back_hand;
+            } else if (action == 'AST') {
+              label = "アシスト"; iconColor = Colors.green; icon = Icons.handshake;
+            } else if (action == 'STL') {
+              label = "スティール"; iconColor = Colors.amber; icon = Icons.security;
+            } else if (action == 'TO') {
+              label = "ターンオーバー"; iconColor = Colors.red; icon = Icons.warning;
+            } else if (action == 'PF') {
+              label = "ファウル"; iconColor = Colors.purple; icon = Icons.sports;
+            }
+
+            // 時刻のパース
+            String timeStr = "";
+            try {
+              if (stat['created_at'] != null) {
+                final dt = DateTime.parse(stat['created_at']);
+                timeStr = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+              }
+            } catch (_) {}
+
+            return ListTile(
+              leading: CircleAvatar(backgroundColor: iconColor.withValues(alpha: 0.2), child: Icon(icon, color: iconColor, size: 20)),
+              title: Text("$name - $label", style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(timeStr),
+            );
+          },
+        );
   }
 }
 
+// ----------------------------------------------------
+// コート描画用の共通カスタムペインター（分析画面用）
+// ----------------------------------------------------
 class AnalysisCourtPainter extends CustomPainter {
   final List<Map<String, dynamic>> shots;
+
   AnalysisCourtPainter(this.shots);
+
   @override
   void paint(Canvas canvas, Size size) {
     final paintLine = Paint()..color = Colors.black54..style = PaintingStyle.stroke..strokeWidth = 2.0;
-    const double courtWidthM = 15.0; 
-    final double scale = size.width / courtWidthM;
+    final double scale = size.width / 15.0;
     Offset mToPx(double x, double y) => Offset(x * scale, y * scale);
-    final keyRect = Rect.fromLTRB(mToPx((15.0 - 4.9) / 2, 0).dx, mToPx((15.0 - 4.9) / 2, 0).dy, mToPx(15.0 - (15.0 - 4.9) / 2, 5.8).dx, mToPx(15.0 - (15.0 - 4.9) / 2, 5.8).dy);
-    canvas.drawRect(keyRect, paintLine);
-    final ftCenter = mToPx(7.5, 5.8);
-    canvas.drawArc(Rect.fromCircle(center: ftCenter, radius: 1.8 * scale), 0, 3.1415 * 2, false, paintLine);
+
+    canvas.drawRect(Rect.fromLTRB(mToPx(5.05, 0).dx, mToPx(5.05, 0).dy, mToPx(9.95, 5.8).dx, mToPx(9.95, 5.8).dy), paintLine);
+    canvas.drawArc(Rect.fromCircle(center: mToPx(7.5, 5.8), radius: 1.8 * scale), 0, 3.1415 * 2, false, paintLine);
     final hoopCenter = mToPx(7.5, 1.575);
-    canvas.drawLine(mToPx(7.5 - 0.9, 1.2), mToPx(7.5 + 0.9, 1.2), paintLine..strokeWidth = 3.0);
+    canvas.drawLine(mToPx(6.6, 1.2), mToPx(8.4, 1.2), paintLine..strokeWidth = 3.0);
     canvas.drawCircle(hoopCenter, 0.225 * scale, paintLine..color = Colors.deepOrange..strokeWidth = 3.0);
     paintLine.color = Colors.black54; paintLine.strokeWidth = 2.0;
-    final ncRect = Rect.fromCircle(center: hoopCenter, radius: 1.25 * scale);
-    canvas.drawArc(ncRect, 0, 3.1415, false, paintLine);
+    canvas.drawArc(Rect.fromCircle(center: hoopCenter, radius: 1.25 * scale), 0, 3.1415, false, paintLine);
+
     final path3p = Path();
     path3p.moveTo(mToPx(0.9, 0).dx, mToPx(0.9, 0).dy);
     path3p.lineTo(mToPx(0.9, 2.99).dx, mToPx(0.9, 2.99).dy);
     path3p.arcToPoint(mToPx(14.1, 2.99), radius: Radius.circular(6.75 * scale), clockwise: false);
     path3p.lineTo(mToPx(14.1, 0).dx, mToPx(14.1, 0).dy);
     canvas.drawPath(path3p, paintLine);
+
     for (var shot in shots) {
-      final isMade = shot['made'] as bool;
-      final dx = shot['x'] as double;
-      final dy = shot['y'] as double;
-      final dotPaint = Paint()..color = isMade ? Colors.deepOrange.withOpacity(0.85) : Colors.blueGrey.withOpacity(0.6)..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(dx * size.width, dy * size.height), 7.0, dotPaint);
-      if (isMade) {
-        final strokePaint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5;
-        canvas.drawCircle(Offset(dx * size.width, dy * size.height), 7.0, strokePaint);
+      if (shot['pos_x'] != null && shot['pos_y'] != null) {
+        final dotPaint = Paint()..color = (shot['is_made'] == 1) ? Colors.deepOrange.withValues(alpha: 0.8) : Colors.grey.withValues(alpha: 0.6)..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset((shot['pos_x'] as double) * size.width, (shot['pos_y'] as double) * size.height), 5.0, dotPaint);
       }
     }
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

@@ -29,7 +29,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   
   int _myScore = 0;
   int _oppScore = 0;
-  int _currentQuarter = 1; // とりあえず1Q固定（将来的に拡張）
+  int _currentQuarter = 1;
 
   @override
   void initState() {
@@ -40,7 +40,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     _loadScores();
   }
 
-  // 現在のスコアをSQLiteから再計算して表示
   Future<void> _loadScores() async {
     await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId);
     final games = await DatabaseHelper.instance.getAllGames();
@@ -54,19 +53,62 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     }
   }
 
-  void _undoLastAction() {
+  Future<void> _undoLastAction() async {
     if (_logs.isEmpty) return;
-    // 実際にはDBからの削除処理も必要ですが、今回はプロトタイプとしてローカルUIのみ元に戻します
-    setState(() {
-      final removed = _logs.removeLast();
+    
+    final removed = _logs.removeLast();
+    
+    if (removed.isOpponent) {
+      await DatabaseHelper.instance.deleteOpponentScore(removed.dbId);
+    } else {
+      await DatabaseHelper.instance.deleteStat(removed.dbId);
+    }
+    
+    await _loadScores();
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${removed.playerName}の ${removed.actionLabel} を取り消しました'), duration: const Duration(seconds: 1)),
+        SnackBar(content: Text("${removed.playerName} の ${removed.actionLabel} を取り消しました"), duration: const Duration(seconds: 1)),
       );
-    });
+    }
   }
 
   void _showLogs() {
-    // 省略：過去ログ表示用
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('試合ログ（直近のアクション）', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(
+                    child: _logs.isEmpty
+                        ? const Center(child: Text('記録がありません'))
+                        : ListView.builder(
+                            itemCount: _logs.length,
+                            itemBuilder: (context, index) {
+                              final log = _logs[_logs.length - 1 - index];
+                              final isMadeText = log.isMade == null ? '' : (log.isMade! ? ' (成功)' : ' (失敗)');
+                              return ListTile(
+                                leading: Icon(log.isOpponent ? Icons.warning : Icons.history, color: log.isOpponent ? Colors.red : Colors.grey),
+                                title: Text("${log.playerName} - ${log.actionLabel}$isMadeText"),
+                                subtitle: Text("${log.time.hour.toString().padLeft(2, '0')}:${log.time.minute.toString().padLeft(2, '0')}"),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showSubstitutionDialog() {
@@ -139,22 +181,11 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     );
   }
 
-  // SQLiteへスタッツを保存し、UIを更新する
   Future<void> _saveStatToDB({required String statType, bool? isMade, double? x, double? y}) async {
     final playerName = _selectedPlayer['court_name'] ?? _selectedPlayer['last_name'];
     
-    // UI用ログ追加
-    setState(() {
-      _logs.add(StatRecord(
-        playerName: playerName,
-        actionId: statType,
-        actionLabel: statType == '2P' || statType == '3P' ? 'シュート' : statType,
-        isMade: isMade, x: x, y: y, time: DateTime.now(),
-      ));
-    });
-
-    // SQLiteへ保存
-    await DatabaseHelper.instance.insertStat({
+    // SQLiteへ保存しIDを取得
+    final dbId = await DatabaseHelper.instance.insertStat({
       'game_id': widget.gameId,
       'player_id': _selectedPlayer['player_id'],
       'quarter': _currentQuarter,
@@ -163,8 +194,19 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
       'pos_x': x,
       'pos_y': y,
     });
+
+    // UI用ログ追加
+    setState(() {
+      _logs.add(StatRecord(
+        dbId: dbId,
+        isOpponent: false,
+        playerName: playerName,
+        actionId: statType,
+        actionLabel: statType == '2P' || statType == '3P' ? 'シュート' : statType,
+        isMade: isMade, x: x, y: y, time: DateTime.now(),
+      ));
+    });
     
-    // スコアが変わるアクションなら再計算
     if (isMade == true && (statType == '2P' || statType == '3P' || statType == 'FT')) {
       await _loadScores();
     }
@@ -210,7 +252,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     final double dx = details.localPosition.dx / courtSize.width;
     final double dy = details.localPosition.dy / courtSize.height;
 
-    // 2P / 3P の判定 (FIBA基準: ゴール中心(7.5, 1.575)から6.75m以上は3P)
     final double x_m = dx * 15.0;
     final double y_m = dy * 14.0;
     final double distance = sqrt(pow(x_m - 7.5, 2) + pow(y_m - 1.575, 2));
@@ -263,35 +304,14 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('相手チーム (${widget.opponentName}) の得点', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text("相手チーム (${widget.opponentName}) の得点", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        await DatabaseHelper.instance.insertOpponentScore({'game_id': widget.gameId, 'opponent_player_id': 'unknown', 'points': 1});
-                        await _loadScores();
-                        if (mounted) Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black87), child: const Text('+1 FT', style: TextStyle(color: Colors.white)),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        await DatabaseHelper.instance.insertOpponentScore({'game_id': widget.gameId, 'opponent_player_id': 'unknown', 'points': 2});
-                        await _loadScores();
-                        if (mounted) Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black87), child: const Text('+2 FG', style: TextStyle(color: Colors.white)),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        await DatabaseHelper.instance.insertOpponentScore({'game_id': widget.gameId, 'opponent_player_id': 'unknown', 'points': 3});
-                        await _loadScores();
-                        if (mounted) Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black87), child: const Text('+3 3P', style: TextStyle(color: Colors.white)),
-                    ),
+                    _buildOpponentScoreBtn(1, 'FT'),
+                    _buildOpponentScoreBtn(2, 'FG'),
+                    _buildOpponentScoreBtn(3, '3P'),
                   ],
                 ),
               ],
@@ -302,10 +322,43 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     );
   }
 
+  Widget _buildOpponentScoreBtn(int pts, String label) {
+    return ElevatedButton(
+      onPressed: () async {
+        final dbId = await DatabaseHelper.instance.insertOpponentScore({'game_id': widget.gameId, 'opponent_player_id': 'unknown', 'points': pts});
+        setState(() {
+          _logs.add(StatRecord(
+            dbId: dbId, isOpponent: true, playerName: widget.opponentName, actionId: 'OPP', actionLabel: '相手得点 (+$pts)', time: DateTime.now()
+          ));
+        });
+        await _loadScores();
+        if (mounted) Navigator.pop(context);
+      },
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.black87), 
+      child: Text("+$pts $label", style: const TextStyle(color: Colors.white)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('SwishLog - 記録中', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), centerTitle: false, toolbarHeight: 48),
+      appBar: AppBar(
+        title: const Text('SwishLog - 記録中', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), 
+        centerTitle: false, 
+        toolbarHeight: 48,
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              // 試合終了処理
+              await DatabaseHelper.instance.updateGameStatus(widget.gameId, 'completed');
+              if (mounted) Navigator.pop(context); // 試合一覧へ戻る
+            },
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+            label: const Text('試合終了', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Container(
@@ -313,7 +366,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             color: Colors.white,
             child: Column(
               children: [
-                Text('vs ${widget.opponentName}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text("vs ${widget.opponentName}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -324,6 +377,26 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                       child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4)), child: const Text('相手得点＋', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.white))),
                     ),
                   ],
+                ),
+                // クォーター切り替えUI
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [1, 2, 3, 4].map((q) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ChoiceChip(
+                        label: Text("$q Q", style: const TextStyle(fontSize: 12)),
+                        selected: _currentQuarter == q,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _currentQuarter = q);
+                        },
+                        selectedColor: Colors.deepOrange.shade100,
+                        showCheckmark: false,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )).toList(),
+                  ),
                 ),
               ],
             ),
@@ -337,11 +410,28 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _logs.isEmpty ? '▶ まだ記録はありません' : '▶ 最新: ${_logs.last.playerName} - ${_logs.last.actionLabel} ${_logs.last.isMade == null ? "" : (_logs.last.isMade! ? "(成功)" : "(失敗)")}',
+                    _logs.isEmpty ? '▶ まだ記録はありません' : "▶ 最新: ${_logs.last.playerName} - ${_logs.last.actionLabel} ${_logs.last.isMade == null ? '' : (_logs.last.isMade! ? '(成功)' : '(失敗)')}",
                     style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 13),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // 復活させたUndoボタンとログボタン
+                IconButton(
+                  icon: const Icon(Icons.undo, size: 20, color: Colors.black87),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: _logs.isEmpty ? null : _undoLastAction,
+                  tooltip: '直前を取り消す'
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: const Icon(Icons.list_alt, size: 20, color: Colors.black87),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: _showLogs,
+                  tooltip: '試合ログ'
+                ),
+                const SizedBox(width: 8),
               ],
             ),
           ),
@@ -445,6 +535,8 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
 }
 
 class StatRecord {
+  final String dbId;
+  final bool isOpponent;
   final String playerName;
   final String actionId;
   final String actionLabel;
@@ -453,7 +545,7 @@ class StatRecord {
   final double? y;
   final DateTime time;
 
-  StatRecord({required this.playerName, required this.actionId, required this.actionLabel, this.isMade, this.x, this.y, required this.time});
+  StatRecord({required this.dbId, required this.isOpponent, required this.playerName, required this.actionId, required this.actionLabel, this.isMade, this.x, this.y, required this.time});
 }
 
 class CourtPainter extends CustomPainter {

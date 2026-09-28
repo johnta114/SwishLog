@@ -327,6 +327,60 @@ class DatabaseHelper {
     );
   }
 
+  // ==========================================
+  // 分析機能 (Analytics) 用のデータ取得・更新処理
+  // ==========================================
+
+  // 条件（試合ごと・クォーターごとなど）に応じて生スタッツデータを取得
+  Future<List<Map<String, dynamic>>> getRawStats({String? gameId, int? quarter}) async {
+    final db = await instance.database;
+    String query = '''
+      SELECT s.*, p.court_name, p.last_name, p.first_name 
+      FROM stats s
+      JOIN players p ON s.player_id = p.id
+      WHERE 1=1
+    ''';
+    List<dynamic> args = [];
+
+    if (gameId != null) {
+      query += ' AND s.game_id = ?';
+      args.add(gameId);
+    }
+    if (quarter != null && quarter > 0) {
+      query += ' AND s.quarter = ?';
+      args.add(quarter);
+    }
+
+    query += ' ORDER BY s.created_at ASC';
+    return await db.rawQuery(query, args);
+  }
+
+  // 試合のYouTubeリンクを更新
+  Future<int> updateGameVideoUrl(String gameId, String url) async {
+    final db = await instance.database;
+    return await db.update('games', {'video_url': url}, where: 'id = ?', whereArgs: [gameId]);
+  }
+
+  // 特定の試合情報を取得
+  Future<Map<String, dynamic>?> getGameById(String gameId) async {
+    final db = await instance.database;
+    final results = await db.query('games', where: 'id = ?', whereArgs: [gameId], limit: 1);
+    if (results.isNotEmpty) return results.first;
+    return null;
+  }
+
+  // 特定のスタッツを削除（Undo用）
+  Future<void> deleteStat(String id) async {
+    final db = await instance.database;
+    await db.delete('stats', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // 特定の相手得点を削除（Undo用）
+  Future<void> deleteOpponentScore(String id) async {
+    final db = await instance.database;
+    await db.delete('opponent_scores', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future close() async {
     final db = await instance.database;
     db.close();
