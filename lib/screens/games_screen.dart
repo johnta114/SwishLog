@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'stats_entry_screen.dart';
 import 'analytics_screen.dart';
+import '../database/database_helper.dart';
 
 class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});
@@ -10,7 +11,14 @@ class GamesScreen extends StatefulWidget {
 }
 
 class _GamesScreenState extends State<GamesScreen> {
-  // 個別検索用のステート
+  // DBから取得するデータ群
+  List<Map<String, dynamic>> _games = [];
+  List<Map<String, dynamic>> _knownOpponents = [];
+  String? _activeSeasonId;
+  List<Map<String, dynamic>> _activeRoster = [];
+  bool _isLoading = true;
+
+  // 検索用
   String _searchOpponent = '';
   String _searchPrefecture = '';
   String _searchDate = '';
@@ -19,25 +27,40 @@ class _GamesScreenState extends State<GamesScreen> {
   final TextEditingController _prefCtrl = TextEditingController();
   final TextEditingController _dateSearchCtrl = TextEditingController();
 
-  final List<Map<String, dynamic>> _games = [
-    {'opponent': '〇〇高校', 'prefecture': '東京都', 'date': '2026-10-01', 'is_u12': false, 'my_score': 68, 'opp_score': 60, 'status': 'completed'},
-    {'opponent': '□□クラブ', 'prefecture': '神奈川県', 'date': '2026-10-03', 'is_u12': false, 'my_score': 35, 'opp_score': 32, 'status': 'in_progress'},
-    {'opponent': '△△クラブ (練習試合)', 'prefecture': '埼玉県', 'date': '2026-10-05', 'is_u12': true, 'my_score': 0, 'opp_score': 0, 'status': 'not_started'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final List<String> _seasonRoster = [
-    'タロウ', 'ジロウ', 'ケン', 'リョウ', 'ショウ', 'シロー', 'ゴロウ', 'ハチロー', 'キュウ', 'ジュウ'
-  ];
+  // SQLiteからデータを読み込む
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    final games = await DatabaseHelper.instance.getAllGames();
+    final opponents = await DatabaseHelper.instance.getOpponentTeams();
+    final seasons = await DatabaseHelper.instance.getSeasons();
+    
+    String? activeSeason;
+    List<Map<String, dynamic>> roster = [];
+    if (seasons.isNotEmpty) {
+      activeSeason = seasons.first['id']; // 最新のシーズンをアクティブとする
+      roster = await DatabaseHelper.instance.getRosterForSeason(activeSeason!);
+    }
 
-  // モックデータ：登録済みの対戦相手
-  final List<Map<String, String>> _knownOpponents = [
-    {'name': '〇〇高校', 'prefecture': '東京都'},
-    {'name': '□□クラブ', 'prefecture': '神奈川県'},
-    {'name': '△△クラブ (練習試合)', 'prefecture': '埼玉県'},
-  ];
+    setState(() {
+      _games = games;
+      _knownOpponents = opponents;
+      _activeSeasonId = activeSeason;
+      _activeRoster = roster;
+      _isLoading = false;
+    });
+  }
 
   void _showStarterSelectionModal(Map<String, dynamic> game) {
     List<String> selectedStarters = [];
+    final rosterNames = _activeRoster.map((p) => (p['court_name'] ?? p['last_name']) as String).toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -53,31 +76,38 @@ class _GamesScreenState extends State<GamesScreen> {
                   children: [
                     const Text('スタメン選択 (5名)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text('現在 \${selectedStarters.length} 名選択中', style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
+                    Text('現在 ${selectedStarters.length} 名選択中', style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8, runSpacing: 8,
-                      children: _seasonRoster.map((player) {
-                        final isSelected = selectedStarters.contains(player);
-                        return FilterChip(
-                          label: Text(player), selected: isSelected, selectedColor: Colors.deepOrange.shade100, checkmarkColor: Colors.deepOrange,
-                          onSelected: (bool selected) {
-                            setModalState(() {
-                              if (selected) {
-                                if (selectedStarters.length < 5) selectedStarters.add(player);
-                              } else {
-                                selectedStarters.remove(player);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
+                    rosterNames.isEmpty 
+                      ? const Padding(padding: EdgeInsets.all(16), child: Text('このシーズンの登録選手がいません。\nチーム管理から追加してください。', textAlign: TextAlign.center))
+                      : Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: rosterNames.map((player) {
+                            final isSelected = selectedStarters.contains(player);
+                            return FilterChip(
+                              label: Text(player), selected: isSelected, selectedColor: Colors.deepOrange.shade100, checkmarkColor: Colors.deepOrange,
+                              onSelected: (bool selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    if (selectedStarters.length < 5) selectedStarters.add(player);
+                                  } else {
+                                    selectedStarters.remove(player);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
                     const SizedBox(height: 32),
                     ElevatedButton(
-                      onPressed: selectedStarters.length == 5 ? () {
+                      onPressed: selectedStarters.length == 5 ? () async {
                         Navigator.pop(context);
-                        final bench = _seasonRoster.where((p) => !selectedStarters.contains(p)).toList();
+                        
+                        // ステータスを「記録中」に更新
+                        await DatabaseHelper.instance.updateGameStatus(game['id'].toString(), 'in_progress');
+                        await _loadData();
+
+                        final bench = rosterNames.where((p) => !selectedStarters.contains(p)).toList();
                         Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(opponentName: game['opponent'], starters: selectedStarters, bench: bench)));
                       } : null,
                       style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), backgroundColor: Colors.deepOrange),
@@ -94,8 +124,13 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 
   void _showAddGameModal() {
+    if (_activeSeasonId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('先に「チーム管理」からシーズンを作成してください')));
+      return;
+    }
+
     bool isNewOpponent = false;
-    String? selectedOpponentName;
+    String? selectedOpponentId;
     final newOpponentCtrl = TextEditingController();
     final prefCtrl = TextEditingController();
     final dateCtrl = TextEditingController(text: DateTime.now().toString().split(' ')[0]);
@@ -116,7 +151,6 @@ class _GamesScreenState extends State<GamesScreen> {
                   const Text('新規試合の作成', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   
-                  // 既存 vs 新規の切り替えトグル
                   Container(
                     decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
                     child: Row(
@@ -147,19 +181,18 @@ class _GamesScreenState extends State<GamesScreen> {
                   const SizedBox(height: 16),
 
                   if (!isNewOpponent) ...[
-                    // ★ 検索機能付きのDropdownMenuを使用
                     DropdownMenu<String>(
                       width: MediaQuery.of(context).size.width - 48,
-                      enableFilter: true, // 入力による絞り込みを有効化
+                      enableFilter: true,
                       requestFocusOnTap: true,
                       label: const Text('チーム名や都道府県を入力して検索'),
                       dropdownMenuEntries: _knownOpponents.map((opp) {
                         return DropdownMenuEntry<String>(
-                          value: opp['name']!,
-                          label: '${opp['name']} (📍 ${opp['prefecture']})',
+                          value: opp['id'].toString(),
+                          label: "${opp['name']} (📍 ${opp['prefecture']})",
                         );
                       }).toList(),
-                      onSelected: (val) => setModalState(() => selectedOpponentName = val),
+                      onSelected: (val) => setModalState(() => selectedOpponentId = val),
                     ),
                   ] else ...[
                     TextField(controller: newOpponentCtrl, decoration: const InputDecoration(labelText: '対戦相手チーム名 *', border: OutlineInputBorder()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -173,7 +206,7 @@ class _GamesScreenState extends State<GamesScreen> {
                     decoration: const InputDecoration(labelText: '試合日', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
-                      if (picked != null) dateCtrl.text = "\${picked.year}-\${picked.month.toString().padLeft(2, '0')}-\${picked.day.toString().padLeft(2, '0')}";
+                      if (picked != null) setModalState(() => dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
                     },
                   ),
                   const SizedBox(height: 16),
@@ -187,26 +220,36 @@ class _GamesScreenState extends State<GamesScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () {
-                      String targetOpponent = '';
-                      String targetPref = '';
+                    onPressed: () async {
+                      String targetOpponentId = '';
 
                       if (isNewOpponent) {
                         if (newOpponentCtrl.text.isEmpty) return;
-                        targetOpponent = newOpponentCtrl.text;
-                        targetPref = prefCtrl.text.isEmpty ? '未設定' : prefCtrl.text;
+                        // SQLiteに対戦相手を新規登録
+                        targetOpponentId = await DatabaseHelper.instance.insertOpponentTeam({
+                          'name': newOpponentCtrl.text,
+                          'prefecture': prefCtrl.text.isEmpty ? '未設定' : prefCtrl.text,
+                          'coach_contact': '',
+                          'notes': '',
+                        });
                       } else {
-                        if (selectedOpponentName == null) return;
-                        targetOpponent = selectedOpponentName!;
-                        targetPref = _knownOpponents.firstWhere((o) => o['name'] == targetOpponent)['prefecture'] ?? '未設定';
+                        if (selectedOpponentId == null) return;
+                        targetOpponentId = selectedOpponentId!;
                       }
 
-                      setState(() {
-                        _games.insert(0, {
-                          'opponent': targetOpponent, 'prefecture': targetPref, 'date': dateCtrl.text, 'is_u12': isU12, 'my_score': 0, 'opp_score': 0, 'status': 'not_started',
-                        });
+                      // SQLiteに試合を登録
+                      await DatabaseHelper.instance.insertGame({
+                        'season_id': _activeSeasonId,
+                        'date': dateCtrl.text,
+                        'opponent_team_id': targetOpponentId,
+                        'is_u12': isU12 ? 1 : 0,
+                        'status': 'not_started',
+                        'my_score': 0,
+                        'opp_score': 0,
                       });
-                      Navigator.pop(context);
+
+                      if (mounted) Navigator.pop(context);
+                      await _loadData();
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                     child: const Text('作成する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -223,7 +266,6 @@ class _GamesScreenState extends State<GamesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 3つの項目すべてでAND検索する
     final filteredGames = _games.where((g) {
       final matchOpp = _searchOpponent.isEmpty || (g['opponent'] ?? '').toLowerCase().contains(_searchOpponent.toLowerCase());
       final matchPref = _searchPrefecture.isEmpty || (g['prefecture'] ?? '').toLowerCase().contains(_searchPrefecture.toLowerCase());
@@ -233,145 +275,148 @@ class _GamesScreenState extends State<GamesScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('SwishLog - 試合一覧', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), centerTitle: false),
-      body: Column(
-        children: [
-          // ★ 個別入力欄に分かれた検索バー
-          Container(
-            color: Colors.deepOrange, 
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(
-              children: [
-                Row(
+      body: _isLoading
+        ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+        : Column(
+            children: [
+              Container(
+                color: Colors.deepOrange, 
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Column(
                   children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _oppCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'チーム名', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-                          isDense: true, filled: true, fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _oppCtrl,
+                            decoration: InputDecoration(
+                              hintText: 'チーム名', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+                              isDense: true, filled: true, fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                            ),
+                            onChanged: (val) => setState(() => _searchOpponent = val),
+                          ),
                         ),
-                        onChanged: (val) => setState(() => _searchOpponent = val),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _prefCtrl,
+                            decoration: InputDecoration(
+                              hintText: '都道府県', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+                              isDense: true, filled: true, fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                            ),
+                            onChanged: (val) => setState(() => _searchPrefecture = val),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _prefCtrl,
-                        decoration: InputDecoration(
-                          hintText: '都道府県', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-                          isDense: true, filled: true, fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _dateSearchCtrl,
+                      decoration: InputDecoration(
+                        hintText: '試合日 (例: 2026-10)', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+                        isDense: true, filled: true, fillColor: Colors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.calendar_today, size: 20, color: Colors.deepOrange),
+                          onPressed: () async {
+                            final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                            if (picked != null) {
+                              final d = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                              _dateSearchCtrl.text = d;
+                              setState(() => _searchDate = d);
+                            }
+                          }
                         ),
-                        onChanged: (val) => setState(() => _searchPrefecture = val),
                       ),
+                      onChanged: (val) => setState(() => _searchDate = val),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _dateSearchCtrl,
-                  decoration: InputDecoration(
-                    hintText: '試合日 (例: 2026-10)', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-                    isDense: true, filled: true, fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.calendar_today, size: 20, color: Colors.deepOrange),
-                      onPressed: () async {
-                        final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
-                        if (picked != null) {
-                          final d = "\${picked.year}-\${picked.month.toString().padLeft(2, '0')}-\${picked.day.toString().padLeft(2, '0')}";
-                          _dateSearchCtrl.text = d;
-                          setState(() => _searchDate = d);
+              ),
+              
+              Expanded(
+                child: filteredGames.isEmpty
+                  ? const Center(child: Text('該当する試合が見つからないか、\nまだ作成されていません。', textAlign: TextAlign.center))
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 80, top: 8),
+                      itemCount: filteredGames.length,
+                      itemBuilder: (context, index) {
+                        final game = filteredGames[index];
+                        final String status = game['status'] ?? 'not_started';
+                        final isU12 = (game['is_u12'] == 1);
+
+                        Color badgeBgColor; Color badgeBorderColor; Color badgeTextColor; String badgeText;
+                        if (status == 'completed') {
+                          badgeBgColor = Colors.grey.shade200; badgeBorderColor = Colors.grey.shade400; badgeTextColor = Colors.black54; badgeText = '試合終了';
+                        } else if (status == 'in_progress') {
+                          badgeBgColor = Colors.blue.shade50; badgeBorderColor = Colors.blue.shade300; badgeTextColor = Colors.blue.shade700; badgeText = '記録中';
+                        } else {
+                          badgeBgColor = Colors.deepOrange.shade50; badgeBorderColor = Colors.deepOrange.shade300; badgeTextColor = Colors.deepOrange; badgeText = '試合前';
                         }
-                      }
-                    ),
-                  ),
-                  onChanged: (val) => setState(() => _searchDate = val),
-                ),
-              ],
-            ),
-          ),
-          
-          Expanded(
-            child: filteredGames.isEmpty
-              ? const Center(child: Text('該当する試合が見つかりません。', textAlign: TextAlign.center))
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 80, top: 8),
-                  itemCount: filteredGames.length,
-                  itemBuilder: (context, index) {
-                    final game = filteredGames[index];
-                    final String status = game['status'] ?? 'not_started';
 
-                    Color badgeBgColor; Color badgeBorderColor; Color badgeTextColor; String badgeText;
-                    if (status == 'completed') {
-                      badgeBgColor = Colors.grey.shade200; badgeBorderColor = Colors.grey.shade400; badgeTextColor = Colors.black54; badgeText = '試合終了';
-                    } else if (status == 'in_progress') {
-                      badgeBgColor = Colors.blue.shade50; badgeBorderColor = Colors.blue.shade300; badgeTextColor = Colors.blue.shade700; badgeText = '記録中';
-                    } else {
-                      badgeBgColor = Colors.deepOrange.shade50; badgeBorderColor = Colors.deepOrange.shade300; badgeTextColor = Colors.deepOrange; badgeText = '試合前';
-                    }
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          if (status == 'completed') {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => AnalyticsScreen(gameTitle: game['opponent'])));
-                          } else if (status == 'in_progress') {
-                            final starters = _seasonRoster.take(5).toList();
-                            final bench = _seasonRoster.skip(5).toList();
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(opponentName: game['opponent'], starters: starters, bench: bench)));
-                          } else {
-                            _showStarterSelectionModal(game);
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              if (status == 'completed') {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => AnalyticsScreen(gameTitle: game['opponent'])));
+                              } else if (status == 'in_progress') {
+                                final rosterNames = _activeRoster.map((p) => (p['court_name'] ?? p['last_name']) as String).toList();
+                                final starters = rosterNames.take(5).toList();
+                                final bench = rosterNames.skip(5).toList();
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(opponentName: game['opponent'], starters: starters, bench: bench)));
+                              } else {
+                                _showStarterSelectionModal(game);
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(game['date'], style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      if (game['is_u12']) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)), child: const Text('U12', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))
+                                      Row(
+                                        children: [
+                                          Text(game['date'], style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                                          const SizedBox(width: 8),
+                                          if (isU12) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)), child: const Text('U12', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))
+                                        ],
+                                      ),
+                                      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: badgeBgColor, borderRadius: BorderRadius.circular(6), border: Border.all(color: badgeBorderColor)), child: Text(badgeText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeTextColor)))
                                     ],
                                   ),
-                                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: badgeBgColor, borderRadius: BorderRadius.circular(6), border: Border.all(color: badgeBorderColor)), child: Text(badgeText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeTextColor)))
+                                  const SizedBox(height: 8),
+                                  Text("vs ${game['opponent']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
+                                  if (game['prefecture'] != null && game['prefecture'].toString().isNotEmpty && game['prefecture'] != '未設定')
+                                    Padding(padding: const EdgeInsets.only(top: 4), child: Text("📍 ${game['prefecture']}", style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold))),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text('MY TEAM', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(width: 16),
+                                      Text("${game['my_score']}", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepOrange)), const Padding(padding: EdgeInsets.symmetric(horizontal: 12.0), child: Text('-', style: TextStyle(fontSize: 24, color: Colors.grey))),
+                                      Text("${game['opp_score']}", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)), const SizedBox(width: 16),
+                                      const Text('OPPONENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ],
+                                  )
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text('vs ${game['opponent']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
-                              if (game['prefecture'] != null && game['prefecture'].toString().isNotEmpty && game['prefecture'] != '未設定')
-                                Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${game['prefecture']}', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold))),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text('MY TEAM', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(width: 16),
-                                  Text('${game['my_score']}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepOrange)), const Padding(padding: EdgeInsets.symmetric(horizontal: 12.0), child: Text('-', style: TextStyle(fontSize: 24, color: Colors.grey))),
-                                  Text('${game['opp_score']}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)), const SizedBox(width: 16),
-                                  const Text('OPPONENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                ],
-                              )
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  }
-                ),
+                        );
+                      }
+                    ),
+              ),
+            ],
           ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddGameModal,
         backgroundColor: Colors.deepOrange, icon: const Icon(Icons.add, color: Colors.white), label: const Text('新規試合', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

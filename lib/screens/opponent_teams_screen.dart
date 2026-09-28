@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
 
 class OpponentTeamsScreen extends StatefulWidget {
   const OpponentTeamsScreen({super.key});
@@ -8,18 +9,30 @@ class OpponentTeamsScreen extends StatefulWidget {
 }
 
 class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
-  // モックデータ：対戦相手のリスト
-  final List<Map<String, String>> _opponents = [
-    {'name': '〇〇高校', 'prefecture': '東京都', 'contact': '山田監督 (090-XXXX-XXXX)', 'notes': 'オールコートマンツーマンが激しい。ガードの#4が要警戒。'},
-    {'name': '□□クラブ', 'prefecture': '神奈川県', 'contact': '佐藤コーチ (sato@example.com)', 'notes': '2-3ゾーンディフェンス中心。リバウンドが強い。'},
-    {'name': '△△クラブ (練習試合)', 'prefecture': '埼玉県', 'contact': '', 'notes': '毎月合同練習をしているチーム。'},
-  ];
+  // DBから取得したデータを保持
+  List<Map<String, dynamic>> _opponents = [];
+  bool _isLoading = true;
 
-  // 検索クエリ
+  // 検索用
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
 
-  // 対戦相手の新規登録ダイアログ
+  @override
+  void initState() {
+    super.initState();
+    _loadOpponents();
+  }
+
+  // SQLiteから対戦相手のリストを取得する
+  Future<void> _loadOpponents() async {
+    setState(() => _isLoading = true);
+    final data = await DatabaseHelper.instance.getOpponentTeams();
+    setState(() {
+      _opponents = data;
+      _isLoading = false;
+    });
+  }
+
   void _showAddOpponentModal() {
     final nameCtrl = TextEditingController();
     final prefCtrl = TextEditingController();
@@ -61,20 +74,23 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (nameCtrl.text.isEmpty) return;
-                  setState(() {
-                    _opponents.add({
-                      'name': nameCtrl.text,
-                      'prefecture': prefCtrl.text,
-                      'contact': contactCtrl.text,
-                      'notes': notesCtrl.text,
-                    });
+                  
+                  // ★ モックデータではなく、SQLiteデータベースに保存する
+                  await DatabaseHelper.instance.insertOpponentTeam({
+                    'name': nameCtrl.text,
+                    'prefecture': prefCtrl.text,
+                    'coach_contact': contactCtrl.text,
+                    'notes': notesCtrl.text,
                   });
-                  Navigator.pop(context);
+                  
+                  // 保存が完了したらリストを再読み込みして閉じる
+                  await _loadOpponents();
+                  if (mounted) Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('登録する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text('保存する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
             ],
@@ -84,9 +100,31 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
     );
   }
 
+  void _confirmDelete(String id, String name) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('削除の確認'),
+        content: Text('「$name」を削除しますか？\n（関連する試合データにも影響が出る可能性があります）'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('キャンセル', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              // ★ SQLiteから削除
+              await DatabaseHelper.instance.deleteOpponentTeam(id);
+              Navigator.pop(context);
+              _loadOpponents(); // リロード
+            },
+            child: const Text('削除する', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 検索フィルタリング
     final filteredOpponents = _opponents.where((opp) {
       if (_searchQuery.isEmpty) return true;
       final query = _searchQuery.toLowerCase();
@@ -109,22 +147,11 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'チーム名・都道府県で検索',
-                hintStyle: const TextStyle(color: Colors.black54),
-                prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                hintText: 'チーム名・都道府県で検索', hintStyle: const TextStyle(color: Colors.black54), prefixIcon: const Icon(Icons.search, color: Colors.black54),
                 suffixIcon: _searchQuery.isNotEmpty 
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black54),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
+                  ? IconButton(icon: const Icon(Icons.clear, color: Colors.black54), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
                   : null,
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 0), border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
               ),
               onChanged: (val) => setState(() => _searchQuery = val),
             ),
@@ -132,74 +159,81 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
           
           // リスト表示
           Expanded(
-            child: filteredOpponents.isEmpty
-              ? const Center(child: Text('対戦相手が見つかりません。', textAlign: TextAlign.center))
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 80, top: 8),
-                  itemCount: filteredOpponents.length,
-                  itemBuilder: (context, index) {
-                    final opp = filteredOpponents[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ExpansionTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blueGrey.shade100,
-                          child: const Icon(Icons.shield, color: Colors.blueGrey),
-                        ),
-                        title: Text(opp['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        subtitle: Text(opp['prefecture']!.isNotEmpty ? '📍 ${opp['prefecture']}' : '未設定', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        children: [
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.contact_phone, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 8),
-                                    Text(opp['contact']!.isNotEmpty ? opp['contact']! : '連絡先未登録', style: const TextStyle(fontSize: 14)),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.notes, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(opp['notes']!.isNotEmpty ? opp['notes']! : 'メモはありません。', style: const TextStyle(fontSize: 14)),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton.icon(
-                                    onPressed: () {}, // 編集モーダルへ
-                                    icon: const Icon(Icons.edit, size: 16),
-                                    label: const Text('編集する'),
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+              : filteredOpponents.isEmpty
+                ? const Center(child: Text('まだ対戦相手が登録されていません。\n右下の＋ボタンから追加してください。', textAlign: TextAlign.center))
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80, top: 8),
+                    itemCount: filteredOpponents.length,
+                    itemBuilder: (context, index) {
+                      final opp = filteredOpponents[index];
+                      // Nullセーフ処理
+                      final name = opp['name'] as String? ?? '名称未設定';
+                      final pref = opp['prefecture'] as String? ?? '';
+                      final contact = opp['coach_contact'] as String? ?? '';
+                      final notes = opp['notes'] as String? ?? '';
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ExpansionTile(
+                          leading: CircleAvatar(backgroundColor: Colors.blueGrey.shade100, child: const Icon(Icons.shield, color: Colors.blueGrey)),
+                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          subtitle: Text(pref.isNotEmpty ? '📍 $pref' : '都道府県未設定', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          children: [
+                            const Divider(height: 1),
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.contact_phone, size: 16, color: Colors.grey), const SizedBox(width: 8),
+                                      Text(contact.isNotEmpty ? contact : '連絡先未登録', style: const TextStyle(fontSize: 14)),
+                                    ],
                                   ),
-                                )
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                    );
-                  }
-                ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.notes, size: 16, color: Colors.grey), const SizedBox(width: 8),
+                                      Expanded(child: Text(notes.isNotEmpty ? notes : 'メモはありません。', style: const TextStyle(fontSize: 14))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () => _confirmDelete(opp['id'].toString(), name),
+                                        icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                        label: const Text('削除', style: TextStyle(color: Colors.red)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      TextButton.icon(
+                                        onPressed: () {}, // 将来的に編集モーダルへ
+                                        icon: const Icon(Icons.edit, size: 16),
+                                        label: const Text('編集'),
+                                      ),
+                                    ],
+                                  )
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      );
+                    }
+                  ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddOpponentModal,
-        backgroundColor: Colors.deepOrange,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('チーム追加', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.deepOrange, icon: const Icon(Icons.add, color: Colors.white), label: const Text('チーム追加', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }

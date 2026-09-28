@@ -20,9 +20,18 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE games ADD COLUMN status TEXT DEFAULT 'not_started'");
+      await db.execute("ALTER TABLE games ADD COLUMN my_score INTEGER DEFAULT 0");
+      await db.execute("ALTER TABLE games ADD COLUMN opp_score INTEGER DEFAULT 0");
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -65,13 +74,14 @@ class DatabaseHelper {
     )
     ''');
 
-    // 4. 対戦相手チーム管理（都道府県・監督連絡先を追加）
+    // 4. 対戦相手チーム管理（都道府県・監督連絡先・メモを追加）
     await db.execute('''
     CREATE TABLE opponent_teams (
       id $idType,
       name $textType,
       prefecture TEXT,
-      coach_contact TEXT
+      coach_contact TEXT,
+      notes TEXT
     )
     ''');
 
@@ -133,6 +143,136 @@ class DatabaseHelper {
       FOREIGN KEY (opponent_player_id) REFERENCES opponent_players (id) ON DELETE CASCADE
     )
     ''');
+  }
+
+  // ==========================================
+  // 対戦相手チーム (Opponent Teams) の CRUD 処理
+  // ==========================================
+  
+  Future<String> insertOpponentTeam(Map<String, dynamic> teamData) async {
+    final db = await instance.database;
+    // 簡単な一意のIDとしてタイムスタンプを使用
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    
+    // SQLiteに保存するためにMapをコピーしてIDを追加
+    final dataToInsert = Map<String, dynamic>.from(teamData);
+    dataToInsert['id'] = id;
+    
+    await db.insert('opponent_teams', dataToInsert);
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> getOpponentTeams() async {
+    final db = await instance.database;
+    // チーム名順で取得
+    return await db.query('opponent_teams', orderBy: 'name ASC');
+  }
+
+  Future<int> deleteOpponentTeam(String id) async {
+    final db = await instance.database;
+    return await db.delete('opponent_teams', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==========================================
+  // シーズン (Seasons) の CRUD 処理
+  // ==========================================
+  
+  Future<String> insertSeason(Map<String, dynamic> seasonData) async {
+    final db = await instance.database;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataToInsert = Map<String, dynamic>.from(seasonData);
+    dataToInsert['id'] = id;
+    await db.insert('seasons', dataToInsert);
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> getSeasons() async {
+    final db = await instance.database;
+    return await db.query('seasons', orderBy: 'start_date DESC');
+  }
+
+  Future<int> deleteSeason(String id) async {
+    final db = await instance.database;
+    return await db.delete('seasons', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==========================================
+  // 選手マスター (Players) の CRUD 処理
+  // ==========================================
+
+  Future<String> insertPlayer(Map<String, dynamic> playerData) async {
+    final db = await instance.database;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataToInsert = Map<String, dynamic>.from(playerData);
+    dataToInsert['id'] = id;
+    await db.insert('players', dataToInsert);
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> getAllPlayers() async {
+    final db = await instance.database;
+    return await db.query('players', orderBy: 'last_name ASC');
+  }
+
+  Future<int> deletePlayerCompletely(String id) async {
+    final db = await instance.database;
+    // playersテーブルから削除（外部キー制約ON DELETE CASCADEにより関連ロスターも消える想定）
+    return await db.delete('players', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==========================================
+  // ロスター (Rosters - シーズンごとの選手名簿) の CRUD 処理
+  // ==========================================
+
+  Future<void> insertRoster(Map<String, dynamic> rosterData) async {
+    final db = await instance.database;
+    await db.insert('rosters', rosterData, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // 特定シーズンの所属選手を取得する（JOINを使用）
+  Future<List<Map<String, dynamic>>> getRosterForSeason(String seasonId) async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT r.season_id, r.player_id, r.jersey_number, r.position,
+             p.last_name, p.first_name, p.court_name, p.birth_date
+      FROM rosters r
+      JOIN players p ON r.player_id = p.id
+      WHERE r.season_id = ?
+      ORDER BY r.jersey_number ASC
+    ''', [seasonId]);
+  }
+
+  Future<int> deletePlayerFromRoster(String seasonId, String playerId) async {
+    final db = await instance.database;
+    return await db.delete('rosters', where: 'season_id = ? AND player_id = ?', whereArgs: [seasonId, playerId]);
+  }
+
+  // ==========================================
+  // 試合 (Games) の CRUD 処理
+  // ==========================================
+
+  Future<String> insertGame(Map<String, dynamic> gameData) async {
+    final db = await instance.database;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataToInsert = Map<String, dynamic>.from(gameData);
+    dataToInsert['id'] = id;
+    await db.insert('games', dataToInsert);
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> getAllGames() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT g.*, o.name as opponent, o.prefecture 
+      FROM games g
+      JOIN opponent_teams o ON g.opponent_team_id = o.id
+      ORDER BY g.date DESC, g.id DESC
+    ''');
+  }
+
+  Future<int> updateGameStatus(String gameId, String status) async {
+    final db = await instance.database;
+    return await db.update('games', {'status': status}, where: 'id = ?', whereArgs: [gameId]);
   }
 
   Future close() async {
