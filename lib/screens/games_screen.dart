@@ -58,8 +58,7 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 
   void _showStarterSelectionModal(Map<String, dynamic> game) {
-    List<String> selectedStarters = [];
-    final rosterNames = _activeRoster.map((p) => (p['court_name'] ?? p['last_name']) as String).toList();
+    List<Map<String, dynamic>> selectedStarters = [];
 
     showModalBottomSheet(
       context: context,
@@ -76,16 +75,17 @@ class _GamesScreenState extends State<GamesScreen> {
                   children: [
                     const Text('スタメン選択 (5名)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text('現在 ${selectedStarters.length} 名選択中', style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
+                    Text("現在 \${selectedStarters.length} 名選択中", style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    rosterNames.isEmpty 
+                    _activeRoster.isEmpty 
                       ? const Padding(padding: EdgeInsets.all(16), child: Text('このシーズンの登録選手がいません。\nチーム管理から追加してください。', textAlign: TextAlign.center))
                       : Wrap(
                           spacing: 8, runSpacing: 8,
-                          children: rosterNames.map((player) {
+                          children: _activeRoster.map((player) {
                             final isSelected = selectedStarters.contains(player);
+                            final name = (player['court_name'] ?? player['last_name']) as String;
                             return FilterChip(
-                              label: Text(player), selected: isSelected, selectedColor: Colors.deepOrange.shade100, checkmarkColor: Colors.deepOrange,
+                              label: Text(name), selected: isSelected, selectedColor: Colors.deepOrange.shade100, checkmarkColor: Colors.deepOrange,
                               onSelected: (bool selected) {
                                 setModalState(() {
                                   if (selected) {
@@ -107,8 +107,9 @@ class _GamesScreenState extends State<GamesScreen> {
                         await DatabaseHelper.instance.updateGameStatus(game['id'].toString(), 'in_progress');
                         await _loadData();
 
-                        final bench = rosterNames.where((p) => !selectedStarters.contains(p)).toList();
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(opponentName: game['opponent'], starters: selectedStarters, bench: bench)));
+                        final bench = _activeRoster.where((p) => !selectedStarters.contains(p)).toList();
+                        await Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: selectedStarters, bench: bench)));
+                        _loadData();
                       } : null,
                       style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), backgroundColor: Colors.deepOrange),
                       child: const Text('試合開始（記録へ）', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -363,14 +364,14 @@ class _GamesScreenState extends State<GamesScreen> {
                           elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            onTap: () {
+                            onTap: () async {
                               if (status == 'completed') {
                                 Navigator.push(context, MaterialPageRoute(builder: (context) => AnalyticsScreen(gameTitle: game['opponent'])));
                               } else if (status == 'in_progress') {
-                                final rosterNames = _activeRoster.map((p) => (p['court_name'] ?? p['last_name']) as String).toList();
-                                final starters = rosterNames.take(5).toList();
-                                final bench = rosterNames.skip(5).toList();
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(opponentName: game['opponent'], starters: starters, bench: bench)));
+                                final starters = _activeRoster.take(5).toList();
+                                final bench = _activeRoster.skip(5).toList();
+                                await Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: starters, bench: bench)));
+                                _loadData();
                               } else {
                                 _showStarterSelectionModal(game);
                               }

@@ -275,6 +275,58 @@ class DatabaseHelper {
     return await db.update('games', {'status': status}, where: 'id = ?', whereArgs: [gameId]);
   }
 
+  // ==========================================
+  // スタッツ記録 (Stats & Scores) の CRUD 処理
+  // ==========================================
+
+  Future<String> insertStat(Map<String, dynamic> statData) async {
+    final db = await instance.database;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataToInsert = Map<String, dynamic>.from(statData);
+    dataToInsert['id'] = id;
+    dataToInsert['created_at'] = DateTime.now().toIso8601String();
+    await db.insert('stats', dataToInsert);
+    return id;
+  }
+
+  Future<String> insertOpponentScore(Map<String, dynamic> scoreData) async {
+    final db = await instance.database;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataToInsert = Map<String, dynamic>.from(scoreData);
+    dataToInsert['id'] = id;
+    await db.insert('opponent_scores', dataToInsert);
+    return id;
+  }
+
+  // 試合の合計得点を再計算して、gamesテーブルを更新する
+  Future<void> updateGameScoreTotals(String gameId) async {
+    final db = await instance.database;
+    
+    // 自チームの得点計算 (2P=2点, 3P=3点, FT=1点)
+    final myStats = await db.rawQuery("SELECT stat_type FROM stats WHERE game_id = ? AND is_made = 1", [gameId]);
+    int myScore = 0;
+    for (var s in myStats) {
+      if (s['stat_type'] == '2P') myScore += 2;
+      if (s['stat_type'] == '3P') myScore += 3;
+      if (s['stat_type'] == 'FT') myScore += 1;
+    }
+
+    // 相手チームの得点計算
+    final oppStats = await db.rawQuery("SELECT SUM(points) as total FROM opponent_scores WHERE game_id = ?", [gameId]);
+    int oppScore = 0;
+    if (oppStats.isNotEmpty && oppStats.first['total'] != null) {
+      oppScore = (oppStats.first['total'] as num).toInt();
+    }
+
+    // 合計得点をgamesテーブルに反映
+    await db.update(
+      'games', 
+      {'my_score': myScore, 'opp_score': oppScore}, 
+      where: 'id = ?', 
+      whereArgs: [gameId]
+    );
+  }
+
   Future close() async {
     final db = await instance.database;
     db.close();
