@@ -438,19 +438,22 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
 
           Expanded(
             child: Center(
-              child: AspectRatio(
-                aspectRatio: 15.0 / 14.0,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final courtSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    return GestureDetector(
-                      onTapDown: (details) => _handleCourtTap(details, courtSize),
-                      child: Container(
-                        decoration: const BoxDecoration(color: Color(0xFFF6E8D7), border: Border(bottom: BorderSide(color: Colors.black54, width: 2))),
-                        child: CustomPaint(size: courtSize, painter: CourtPainter(_logs)),
-                      ),
-                    );
-                  },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: AspectRatio(
+                  aspectRatio: 15.0 / 14.0,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final courtSize = Size(constraints.maxWidth, constraints.maxHeight);
+                      return GestureDetector(
+                        onTapDown: (details) => _handleCourtTap(details, courtSize),
+                        child: Container(
+                          decoration: const BoxDecoration(color: Color(0xFFF6E8D7), border: Border(bottom: BorderSide(color: Colors.black54, width: 2))),
+                          child: CustomPaint(size: courtSize, painter: CourtPainter(_logs)),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -480,33 +483,36 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             ),
           ),
 
-          Container(
-            height: 60,
-            color: Colors.grey.shade100,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: Row(
-              children: [
-                ..._activePlayers.map((player) {
-                  final isSelected = player['player_id'] == _selectedPlayer['player_id'];
-                  final name = player['court_name'] ?? player['last_name'];
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedPlayer = player),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(color: isSelected ? Colors.deepOrange : Colors.white, border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400), borderRadius: BorderRadius.circular(6)),
-                        child: Center(
-                          child: Text(name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal), maxLines: 1, overflow: TextOverflow.ellipsis),
+          SafeArea(
+            top: false,
+            child: Container(
+              height: 60,
+              color: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                children: [
+                  ..._activePlayers.map((player) {
+                    final isSelected = player['player_id'] == _selectedPlayer['player_id'];
+                    final name = player['court_name'] ?? player['last_name'];
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedPlayer = player),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(color: isSelected ? Colors.deepOrange : Colors.white, border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400), borderRadius: BorderRadius.circular(6)),
+                          child: Center(
+                            child: Text(name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-                Container(
-                  width: 44, margin: const EdgeInsets.only(left: 4),
-                  child: IconButton(onPressed: _showSubstitutionDialog, icon: const Icon(Icons.change_circle, size: 28, color: Colors.blueGrey), padding: EdgeInsets.zero),
-                )
-              ],
+                    );
+                  }),
+                  Container(
+                    width: 44, margin: const EdgeInsets.only(left: 4),
+                    child: IconButton(onPressed: _showSubstitutionDialog, icon: const Icon(Icons.change_circle, size: 28, color: Colors.blueGrey), padding: EdgeInsets.zero),
+                  )
+                ],
+              ),
             ),
           ),
         ],

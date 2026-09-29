@@ -20,7 +20,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -28,9 +28,15 @@ class DatabaseHelper {
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute("ALTER TABLE games ADD COLUMN status TEXT DEFAULT 'not_started'");
-      await db.execute("ALTER TABLE games ADD COLUMN my_score INTEGER DEFAULT 0");
-      await db.execute("ALTER TABLE games ADD COLUMN opp_score INTEGER DEFAULT 0");
+      try { await db.execute("ALTER TABLE games ADD COLUMN status TEXT DEFAULT 'not_started'"); } catch (_) {}
+      try { await db.execute("ALTER TABLE games ADD COLUMN my_score INTEGER DEFAULT 0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE games ADD COLUMN opp_score INTEGER DEFAULT 0"); } catch (_) {}
+    }
+    if (oldVersion < 3) {
+      // バージョン2で新規作成された環境（iPhone等）にはこれらのカラムが存在しないため、安全に追加を試みる
+      try { await db.execute("ALTER TABLE games ADD COLUMN status TEXT DEFAULT 'not_started'"); } catch (_) {}
+      try { await db.execute("ALTER TABLE games ADD COLUMN my_score INTEGER DEFAULT 0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE games ADD COLUMN opp_score INTEGER DEFAULT 0"); } catch (_) {}
     }
   }
 
@@ -104,6 +110,9 @@ class DatabaseHelper {
       date $textType,
       opponent_team_id TEXT NOT NULL,
       is_u12 INTEGER NOT NULL DEFAULT 0,
+      status TEXT DEFAULT 'not_started',
+      my_score INTEGER DEFAULT 0,
+      opp_score INTEGER DEFAULT 0,
       opp_score_q1 INTEGER DEFAULT 0,
       opp_score_q2 INTEGER DEFAULT 0,
       opp_score_q3 INTEGER DEFAULT 0,
@@ -212,6 +221,18 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllPlayers() async {
     final db = await instance.database;
     return await db.query('players', orderBy: 'last_name ASC');
+  }
+
+  // プレイヤー情報の更新
+  Future<void> updatePlayer(String id, Map<String, dynamic> playerData) async {
+    final db = await instance.database;
+    await db.update('players', playerData, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ロスター（背番号・ポジションなど）の更新
+  Future<void> updateRoster(String seasonId, String playerId, Map<String, dynamic> rosterData) async {
+    final db = await instance.database;
+    await db.update('rosters', rosterData, where: 'season_id = ? AND player_id = ?', whereArgs: [seasonId, playerId]);
   }
 
   Future<int> deletePlayerCompletely(String id) async {

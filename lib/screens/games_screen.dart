@@ -75,26 +75,50 @@ class _GamesScreenState extends State<GamesScreen> {
                   children: [
                     const Text('スタメン選択 (5名)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text("現在 \${selectedStarters.length} 名選択中", style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
+                    Text("現在 ${selectedStarters.length} 名選択中", style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     _activeRoster.isEmpty 
                       ? const Padding(padding: EdgeInsets.all(16), child: Text('このシーズンの登録選手がいません。\nチーム管理から追加してください。', textAlign: TextAlign.center))
                       : Wrap(
-                          spacing: 8, runSpacing: 8,
+                          spacing: 12, runSpacing: 12,
                           children: _activeRoster.map((player) {
-                            final isSelected = selectedStarters.contains(player);
+                            final isSelected = selectedStarters.any((p) => p['player_id'] == player['player_id']);
                             final name = (player['court_name'] ?? player['last_name']) as String;
-                            return FilterChip(
-                              label: Text(name), selected: isSelected, selectedColor: Colors.deepOrange.shade100, checkmarkColor: Colors.deepOrange,
-                              onSelected: (bool selected) {
+                            return GestureDetector(
+                              onTap: () {
                                 setModalState(() {
-                                  if (selected) {
-                                    if (selectedStarters.length < 5) selectedStarters.add(player);
+                                  if (isSelected) {
+                                    selectedStarters.removeWhere((p) => p['player_id'] == player['player_id']);
                                   } else {
-                                    selectedStarters.remove(player);
+                                    if (selectedStarters.length < 5) selectedStarters.add(player);
                                   }
                                 });
                               },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.deepOrange : Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400, width: 2),
+                                  boxShadow: isSelected ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : [],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isSelected) const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                                    if (isSelected) const SizedBox(width: 6),
+                                    Text(
+                                      name,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black87,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             );
                           }).toList(),
                         ),
@@ -225,7 +249,10 @@ class _GamesScreenState extends State<GamesScreen> {
                       String targetOpponentId = '';
 
                       if (isNewOpponent) {
-                        if (newOpponentCtrl.text.isEmpty) return;
+                        if (newOpponentCtrl.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('対戦相手のチーム名を入力してください')));
+                          return;
+                        }
                         // SQLiteに対戦相手を新規登録
                         targetOpponentId = await DatabaseHelper.instance.insertOpponentTeam({
                           'name': newOpponentCtrl.text,
@@ -234,7 +261,10 @@ class _GamesScreenState extends State<GamesScreen> {
                           'notes': '',
                         });
                       } else {
-                        if (selectedOpponentId == null) return;
+                        if (selectedOpponentId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('対戦相手を選択してください')));
+                          return;
+                        }
                         targetOpponentId = selectedOpponentId!;
                       }
 

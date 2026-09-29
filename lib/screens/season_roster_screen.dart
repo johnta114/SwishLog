@@ -184,7 +184,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
     final lastCtrl = TextEditingController();
     final firstCtrl = TextEditingController();
     final courtCtrl = TextEditingController();
-    final birthCtrl = TextEditingController(text: '2014-04-01');
+    final birthCtrl = TextEditingController();
     final jerseyCtrl = TextEditingController();
     String? selectedPosition;
     final positions = ['PG', 'SG', 'SF', 'PF', 'C'];
@@ -285,7 +285,10 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                           child: DropdownButtonFormField<String>(
                             decoration: const InputDecoration(labelText: 'ポジション', border: OutlineInputBorder()),
                             value: selectedPosition,
-                            items: positions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                            items: [
+                              const DropdownMenuItem<String>(value: null, child: Text('未選択')),
+                              ...positions.map((p) => DropdownMenuItem(value: p, child: Text(p))),
+                            ],
                             onChanged: (val) => setModalState(() => selectedPosition = val),
                           ),
                         ),
@@ -300,7 +303,10 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                         String playerIdToLink;
 
                         if (isNewPlayer) {
-                          if (lastCtrl.text.isEmpty || firstCtrl.text.isEmpty || courtCtrl.text.isEmpty) return;
+                          if (lastCtrl.text.isEmpty || firstCtrl.text.isEmpty || courtCtrl.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('姓、名、コートネームは必須です')));
+                            return;
+                          }
                           
                           // ① playersテーブルに新規登録
                           playerIdToLink = await DatabaseHelper.instance.insertPlayer({
@@ -311,7 +317,10 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                             'is_active': 1,
                           });
                         } else {
-                          if (selectedExistingPlayerId == null) return;
+                          if (selectedExistingPlayerId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('既存の選手を選択してください')));
+                            return;
+                          }
                           playerIdToLink = selectedExistingPlayerId!;
                         }
 
@@ -328,6 +337,102 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50)),
                       child: const Text('追加する', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _showPlayerEditModal(Map<String, dynamic> player) {
+    final lastCtrl = TextEditingController(text: player['last_name']);
+    final firstCtrl = TextEditingController(text: player['first_name']);
+    final courtCtrl = TextEditingController(text: player['court_name']);
+    final birthCtrl = TextEditingController(text: player['birth_date'] ?? '');
+    final jerseyCtrl = TextEditingController(text: player['jersey_number']?.toString() ?? '');
+    String? selectedPosition = player['position'];
+    final positions = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+    if (!positions.contains(selectedPosition)) selectedPosition = null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('選手情報の編集', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(controller: lastCtrl, decoration: const InputDecoration(labelText: '姓 (Last Name) *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: firstCtrl, decoration: const InputDecoration(labelText: '名 (First Name) *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: courtCtrl, decoration: const InputDecoration(labelText: 'コートネーム *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: birthCtrl, readOnly: true,
+                      decoration: const InputDecoration(labelText: '生年月日 (任意)', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                      onTap: () async {
+                        final initial = DateTime.tryParse(birthCtrl.text) ?? DateTime(2014, 4, 1);
+                        final picked = await showDatePicker(context: context, initialDate: initial, firstDate: DateTime(1900), lastDate: DateTime.now());
+                        if (picked != null) setModalState(() => birthCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: jerseyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '背番号', border: OutlineInputBorder(), prefixIcon: Icon(Icons.numbers)))),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(labelText: 'ポジション', border: OutlineInputBorder()),
+                            value: selectedPosition,
+                            items: [
+                              const DropdownMenuItem<String>(value: null, child: Text('未選択')),
+                              ...positions.map((p) => DropdownMenuItem(value: p, child: Text(p))),
+                            ],
+                            onChanged: (val) => setModalState(() => selectedPosition = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (lastCtrl.text.isEmpty || firstCtrl.text.isEmpty || courtCtrl.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('姓、名、コートネームは必須です')));
+                          return;
+                        }
+                        // 更新処理
+                        await DatabaseHelper.instance.updatePlayer(player['player_id'], {
+                          'last_name': lastCtrl.text,
+                          'first_name': firstCtrl.text,
+                          'court_name': courtCtrl.text,
+                          'birth_date': birthCtrl.text,
+                        });
+                        if (_selectedSeasonId != null) {
+                          await DatabaseHelper.instance.updateRoster(_selectedSeasonId!, player['player_id'], {
+                            'jersey_number': int.tryParse(jerseyCtrl.text),
+                            'position': selectedPosition,
+                          });
+                        }
+                        if (mounted) Navigator.pop(context);
+                        _loadData(); // リロード
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      child: const Text('保存する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -451,7 +556,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                               extentRatio: 0.5,
                               children: [
                                 CustomSlidableAction(
-                                  onPressed: (context) {}, // 将来の編集用
+                                  onPressed: (context) => _showPlayerEditModal(player),
                                   backgroundColor: Colors.transparent,
                                   foregroundColor: Colors.blue,
                                   padding: const EdgeInsets.only(left: 8),
