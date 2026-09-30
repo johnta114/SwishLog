@@ -319,6 +319,11 @@ class DatabaseHelper {
     return id;
   }
 
+  Future<List<Map<String, dynamic>>> getOpponentScoresByGame(String gameId) async {
+    final db = await instance.database;
+    return await db.query('opponent_scores', where: 'game_id = ?', whereArgs: [gameId], orderBy: 'id ASC');
+  }
+
   // 試合の合計得点を再計算して、gamesテーブルを更新する
   Future<void> updateGameScoreTotals(String gameId) async {
     final db = await instance.database;

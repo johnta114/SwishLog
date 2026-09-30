@@ -42,16 +42,70 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   }
 
   Future<void> _loadScores() async {
-    await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId);
-    final games = await DatabaseHelper.instance.getAllGames();
-    final thisGame = games.firstWhere((g) => g['id'].toString() == widget.gameId);
-    
-    if (mounted) {
-      setState(() {
-        _myScore = (thisGame['my_score'] as int?) ?? 0;
-        _oppScore = (thisGame['opp_score'] as int?) ?? 0;
-        _isU12 = (thisGame['is_u12'] == 1);
-      });
+    try {
+      await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId);
+      final games = await DatabaseHelper.instance.getAllGames();
+      final thisGame = games.firstWhere((g) => g['id'].toString() == widget.gameId);
+      
+      // DBから既存のログを取得
+      final rawStats = await DatabaseHelper.instance.getRawStats(gameId: widget.gameId);
+      final oppScores = await DatabaseHelper.instance.getOpponentScoresByGame(widget.gameId);
+
+      final List<StatRecord> loadedLogs = [];
+
+      for (var s in rawStats) {
+        final type = s['stat_type'];
+        final isMade = s['is_made'] == 1;
+        String label = type;
+        if (type == '2P' || type == '3P' || type == 'FG') label = "$type ${isMade ? '成功' : '失敗'}";
+        else if (type == 'FT') label = "フリースロー ${isMade ? '成功' : '失敗'}";
+        else if (type == 'REB') label = "リバウンド";
+        else if (type == 'AST') label = "アシスト";
+        else if (type == 'STL') label = "スティール";
+        else if (type == 'TO') label = "ターンオーバー";
+        else if (type == 'PF') label = "ファウル";
+        else if (type == 'SUB') label = "交代でIN";
+
+        loadedLogs.add(StatRecord(
+          dbId: s['id'].toString(),
+          isOpponent: false,
+          playerName: s['court_name'] ?? s['last_name'],
+          actionId: type,
+          actionLabel: label,
+          isMade: s['is_made'] != null ? isMade : null,
+          x: s['pos_x'] != null ? (s['pos_x'] as num).toDouble() : null,
+          y: s['pos_y'] != null ? (s['pos_y'] as num).toDouble() : null,
+          time: s['created_at'] != null ? DateTime.parse(s['created_at']) : DateTime.now(),
+        ));
+      }
+
+      for (var os in oppScores) {
+        int? ms;
+        try { ms = int.parse(os['id'].toString()); } catch (_) {}
+        loadedLogs.add(StatRecord(
+          dbId: os['id'].toString(),
+          isOpponent: true,
+          playerName: widget.opponentName,
+          actionId: 'OPP',
+          actionLabel: '相手得点 (+${os['points']})',
+          time: ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : DateTime.now(),
+        ));
+      }
+
+      // 時間順にソート
+      loadedLogs.sort((a, b) => a.time.compareTo(b.time));
+
+      if (mounted) {
+        setState(() {
+          _myScore = (thisGame['my_score'] as int?) ?? 0;
+          _oppScore = (thisGame['opp_score'] as int?) ?? 0;
+          _isU12 = (thisGame['is_u12'] == 1);
+          _logs.clear();
+          _logs.addAll(loadedLogs);
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading scores/logs: $e");
     }
   }
 
