@@ -226,7 +226,17 @@ class _GamesScreenState extends State<GamesScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: dateCtrl, readOnly: true,
-                    decoration: const InputDecoration(labelText: '試合日', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                    decoration: InputDecoration(
+                      labelText: '試合日', border: const OutlineInputBorder(),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (dateCtrl.text.isNotEmpty) IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setModalState(() => dateCtrl.clear())),
+                          const Icon(Icons.calendar_today, size: 20),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
+                    ),
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
                       if (picked != null) setModalState(() => dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
@@ -349,16 +359,28 @@ class _GamesScreenState extends State<GamesScreen> {
                         hintText: '試合日 (例: 2026-10)', hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
                         isDense: true, filled: true, fillColor: Colors.white,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.calendar_today, size: 20, color: Colors.deepOrange),
-                          onPressed: () async {
-                            final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
-                            if (picked != null) {
-                              final d = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                              _dateSearchCtrl.text = d;
-                              setState(() => _searchDate = d);
-                            }
-                          }
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_dateSearchCtrl.text.isNotEmpty) IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () {
+                                _dateSearchCtrl.clear();
+                                setState(() => _searchDate = '');
+                              }
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.calendar_today, size: 20, color: Colors.deepOrange),
+                              onPressed: () async {
+                                final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                                if (picked != null) {
+                                  final d = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                  _dateSearchCtrl.text = d;
+                                  setState(() => _searchDate = d);
+                                }
+                              }
+                            ),
+                          ],
                         ),
                       ),
                       onChanged: (val) => setState(() => _searchDate = val),

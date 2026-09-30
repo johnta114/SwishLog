@@ -79,7 +79,17 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: dateCtrl, readOnly: true,
-                      decoration: const InputDecoration(labelText: '開始日', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                      decoration: InputDecoration(
+                        labelText: '開始日', border: const OutlineInputBorder(),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (dateCtrl.text.isNotEmpty) IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setModalState(() => dateCtrl.clear())),
+                            const Icon(Icons.calendar_today, size: 20),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ),
                       onTap: () async {
                         final DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
                         if (picked != null) setModalState(() => dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
@@ -249,7 +259,17 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: birthCtrl, readOnly: true,
-                        decoration: const InputDecoration(labelText: '生年月日', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                        decoration: InputDecoration(
+                          labelText: '生年月日', border: const OutlineInputBorder(),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (birthCtrl.text.isNotEmpty) IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setModalState(() => birthCtrl.clear())),
+                              const Icon(Icons.calendar_today, size: 20),
+                              const SizedBox(width: 12),
+                            ],
+                          ),
+                        ),
                         onTap: () async {
                           final DateTime? picked = await showDatePicker(context: context, initialDate: DateTime(2014, 4, 1), firstDate: DateTime(1950), lastDate: DateTime.now());
                           if (picked != null) setModalState(() => birthCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
@@ -383,7 +403,17 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: birthCtrl, readOnly: true,
-                      decoration: const InputDecoration(labelText: '生年月日 (任意)', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                      decoration: InputDecoration(
+                        labelText: '生年月日 (任意)', border: const OutlineInputBorder(),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (birthCtrl.text.isNotEmpty) IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setModalState(() => birthCtrl.clear())),
+                            const Icon(Icons.calendar_today, size: 20),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ),
                       onTap: () async {
                         final initial = DateTime.tryParse(birthCtrl.text) ?? DateTime(2014, 4, 1);
                         final picked = await showDatePicker(context: context, initialDate: initial, firstDate: DateTime(1900), lastDate: DateTime.now());
