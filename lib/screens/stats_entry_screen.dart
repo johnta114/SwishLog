@@ -163,15 +163,35 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                   children: _benchPlayers.map((p) => ActionChip(
                     label: Text(p['court_name'] ?? p['last_name']),
                     backgroundColor: Colors.deepOrange.shade100,
-                    onPressed: () {
+                    onPressed: () async {
+                      final String inName = p['court_name'] ?? p['last_name'];
+                      final String outName = playerOut['court_name'] ?? playerOut['last_name'];
+
+                      // 交代のログをDBに記録
+                      final dbId = await DatabaseHelper.instance.insertStat({
+                        'game_id': widget.gameId,
+                        'player_id': p['player_id'],
+                        'quarter': _currentQuarter,
+                        'stat_type': 'SUB',
+                      });
+
                       setState(() {
+                        _logs.add(StatRecord(
+                          dbId: dbId,
+                          isOpponent: false,
+                          playerName: inName,
+                          actionId: 'SUB',
+                          actionLabel: 'IN (OUT: $outName)',
+                          time: DateTime.now(),
+                        ));
+
                         _activePlayers.remove(playerOut);
                         _benchPlayers.remove(p);
                         _activePlayers.add(p);
                         _benchPlayers.add(playerOut);
                         if (_selectedPlayer['player_id'] == playerOut['player_id']) _selectedPlayer = p;
                       });
-                      Navigator.pop(context);
+                      if (mounted) Navigator.pop(context);
                     },
                   )).toList(),
                 )

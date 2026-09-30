@@ -164,9 +164,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       centerTitle: false,
       bottom: isGameSpecific
         ? const TabBar(
-            indicatorColor: Colors.deepOrange,
-            labelColor: Colors.deepOrange,
-            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(icon: Icon(Icons.bar_chart), text: "スタッツ"),
               Tab(icon: Icon(Icons.history), text: "試合ログ"),
@@ -377,6 +377,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               label = "ターンオーバー"; iconColor = Colors.red; icon = Icons.warning;
             } else if (action == 'PF') {
               label = "ファウル"; iconColor = Colors.purple; icon = Icons.sports;
+            } else if (action == 'SUB') {
+              label = "交代でIN"; iconColor = Colors.blueGrey; icon = Icons.change_circle;
             }
 
             // 時刻のパース
