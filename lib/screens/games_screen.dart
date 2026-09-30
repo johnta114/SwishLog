@@ -106,13 +106,11 @@ class _GamesScreenState extends State<GamesScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (isSelected) const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                                    if (isSelected) const SizedBox(width: 6),
                                     Text(
                                       name,
                                       style: TextStyle(
                                         color: isSelected ? Colors.white : Colors.black87,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontWeight: FontWeight.bold,
                                         fontSize: 14,
                                       ),
                                     ),
