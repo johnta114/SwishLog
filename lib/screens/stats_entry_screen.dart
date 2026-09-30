@@ -30,6 +30,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   int _myScore = 0;
   int _oppScore = 0;
   int _currentQuarter = 1;
+  bool _isU12 = false;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
       setState(() {
         _myScore = (thisGame['my_score'] as int?) ?? 0;
         _oppScore = (thisGame['opp_score'] as int?) ?? 0;
+        _isU12 = (thisGame['is_u12'] == 1);
       });
     }
   }
@@ -255,7 +257,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     final double x_m = dx * 15.0;
     final double y_m = dy * 14.0;
     final double distance = sqrt(pow(x_m - 7.5, 2) + pow(y_m - 1.575, 2));
-    final bool is3P = distance >= 6.75 && y_m >= 2.99;
+    final bool is3P = !_isU12 && distance >= 6.75 && y_m >= 2.99;
     final String statType = is3P ? '3P' : '2P';
 
     showModalBottomSheet(
@@ -311,7 +313,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                   children: [
                     _buildOpponentScoreBtn(1, 'FT'),
                     _buildOpponentScoreBtn(2, 'FG'),
-                    _buildOpponentScoreBtn(3, '3P'),
+                    if (!_isU12) _buildOpponentScoreBtn(3, '3P'),
                   ],
                 ),
               ],
