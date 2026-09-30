@@ -114,7 +114,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog - 選手一覧', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
       body: _players.isEmpty

@@ -135,7 +135,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog - 対戦相手', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
       body: Column(

@@ -57,16 +57,21 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed, // 4つ以上の場合はfixedにしないと見た目が崩れる
-        selectedItemColor: Colors.deepOrange,
-        unselectedItemColor: Colors.grey,
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed, // 4つ以上の場合はfixedにしないと見た目が崩れる
+          selectedItemColor: Colors.deepOrange,
+          unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_basketball),
@@ -85,6 +90,7 @@ class _MainScreenState extends State<MainScreen> {
             label: '分析',
           ),
         ],
+      ),
       ),
     );
   }

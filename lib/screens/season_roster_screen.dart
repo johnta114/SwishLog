@@ -491,7 +491,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog - チーム管理', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
       body: _isLoading 

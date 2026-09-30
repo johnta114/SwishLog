@@ -343,7 +343,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog - 記録中', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), 
+        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), 
         centerTitle: false, 
         toolbarHeight: 48,
         actions: [

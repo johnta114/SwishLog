@@ -305,7 +305,7 @@ class _GamesScreenState extends State<GamesScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('SwishLog - 試合一覧', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), centerTitle: false),
+      appBar: AppBar(title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), centerTitle: false),
       body: _isLoading
         ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
         : Column(

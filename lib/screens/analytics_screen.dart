@@ -160,10 +160,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         );
 
     final appBar = AppBar(
-      title: Text(
-        widget.gameTitle != null ? "分析: ${widget.gameTitle}" : "シーズン全体分析",
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-      ),
+      title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      centerTitle: false,
       bottom: isGameSpecific
         ? const TabBar(
             indicatorColor: Colors.deepOrange,
