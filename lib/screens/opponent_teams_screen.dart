@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class OpponentTeamsScreen extends StatefulWidget {
   const OpponentTeamsScreen({super.key});
@@ -33,11 +34,12 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
     });
   }
 
-  void _showAddOpponentModal() {
-    final nameCtrl = TextEditingController();
-    final prefCtrl = TextEditingController();
-    final contactCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+  void _showOpponentModal([Map<String, dynamic>? opponent]) {
+    final isEdit = opponent != null;
+    final nameCtrl = TextEditingController(text: isEdit ? opponent['name'] : '');
+    final prefCtrl = TextEditingController(text: isEdit ? opponent['prefecture'] : '');
+    final contactCtrl = TextEditingController(text: isEdit ? opponent['coach_contact'] : '');
+    final notesCtrl = TextEditingController(text: isEdit ? opponent['notes'] : '');
 
     showModalBottomSheet(
       context: context,
@@ -49,7 +51,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('対戦相手の新規登録', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(isEdit ? '対戦相手の編集' : '対戦相手の新規登録', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextField(
                 controller: nameCtrl,
@@ -77,13 +79,17 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
                 onPressed: () async {
                   if (nameCtrl.text.isEmpty) return;
                   
-                  // ★ モックデータではなく、SQLiteデータベースに保存する
-                  await DatabaseHelper.instance.insertOpponentTeam({
+                  final data = {
                     'name': nameCtrl.text,
                     'prefecture': prefCtrl.text,
                     'coach_contact': contactCtrl.text,
                     'notes': notesCtrl.text,
-                  });
+                  };
+                  if (isEdit) {
+                    await DatabaseHelper.instance.updateOpponentTeam(opponent['id'].toString(), data);
+                  } else {
+                    await DatabaseHelper.instance.insertOpponentTeam(data);
+                  }
                   
                   // 保存が完了したらリストを再読み込みして閉じる
                   await _loadOpponents();
@@ -174,10 +180,38 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
                       final contact = opp['coach_contact'] as String? ?? '';
                       final notes = opp['notes'] as String? ?? '';
 
-                      return Card(
+                      return Slidable(
+                        key: ValueKey(opp['id'].toString()),
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: 0.5,
+                          children: [
+                            CustomSlidableAction(
+                              onPressed: (context) => _showOpponentModal(opp),
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.blue,
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Container(
+                                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
+                                child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.edit), SizedBox(height: 4), Text('編集', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                              ),
+                            ),
+                            CustomSlidableAction(
+                              onPressed: (context) => _confirmDelete(opp['id'].toString(), name),
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.red,
+                              padding: const EdgeInsets.only(left: 8, right: 8),
+                              child: Container(
+                                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
+                                child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.delete), SizedBox(height: 4), Text('削除', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                              ),
+                            ),
+                          ],
+                        ),
+                        child: Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0, color: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                         child: ExpansionTile(
                           leading: CircleAvatar(backgroundColor: Colors.blueGrey.shade100, child: const Icon(Icons.shield, color: Colors.blueGrey)),
                           title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -204,26 +238,11 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      TextButton.icon(
-                                        onPressed: () => _confirmDelete(opp['id'].toString(), name),
-                                        icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                                        label: const Text('削除', style: TextStyle(color: Colors.red)),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      TextButton.icon(
-                                        onPressed: () {}, // 将来的に編集モーダルへ
-                                        icon: const Icon(Icons.edit, size: 16),
-                                        label: const Text('編集'),
-                                      ),
-                                    ],
-                                  )
                                 ],
                               ),
                             )
                           ],
+                        ),
                         ),
                       );
                     }
@@ -232,7 +251,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddOpponentModal,
+        onPressed: () => _showOpponentModal(),
         backgroundColor: Colors.deepOrange, icon: const Icon(Icons.add, color: Colors.white), label: const Text('チーム追加', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );

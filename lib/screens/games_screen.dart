@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'stats_entry_screen.dart';
 import 'analytics_screen.dart';
 import '../database/database_helper.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});
@@ -146,7 +147,30 @@ class _GamesScreenState extends State<GamesScreen> {
     );
   }
 
-  void _showAddGameModal() {
+  void _confirmDeleteGame(String id, String opponentName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('削除の確認'),
+        content: Text('vs $opponentName の試合を削除しますか？\n関連するすべてのスタッツとアクションログも削除されます。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('キャンセル', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              await DatabaseHelper.instance.deleteGame(id);
+              Navigator.pop(context);
+              _loadData();
+            },
+            child: const Text('削除する', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
+  }
+
+  void _showGameModal([Map<String, dynamic>? game]) {
+    final isEdit = game != null;
     if (_activeSeasonId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('先に「チーム管理」からシーズンを作成してください')));
       return;
@@ -409,9 +433,38 @@ class _GamesScreenState extends State<GamesScreen> {
                           badgeBgColor = Colors.deepOrange.shade50; badgeBorderColor = Colors.deepOrange.shade300; badgeTextColor = Colors.deepOrange; badgeText = '試合前';
                         }
 
-                        return Card(
+                        return Slidable(
+                          key: ValueKey(game['id'].toString()),
+                          endActionPane: ActionPane(
+                            motion: const DrawerMotion(),
+                            extentRatio: 0.5,
+                            children: [
+                              CustomSlidableAction(
+                                onPressed: (context) => _showGameModal(game),
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.blue,
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Container(
+                                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
+                                  child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.edit), SizedBox(height: 4), Text('編集', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                                ),
+                              ),
+                              CustomSlidableAction(
+                                onPressed: (context) => _confirmDeleteGame(game['id'].toString(), game['opponent']),
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.red,
+                                padding: const EdgeInsets.only(left: 8, right: 8),
+                                child: Container(
+                                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
+                                  child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.delete), SizedBox(height: 4), Text('削除', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                                ),
+                              ),
+                            ],
+                          ),
+                          child: Card(
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0, color: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () async {
@@ -462,14 +515,15 @@ class _GamesScreenState extends State<GamesScreen> {
                               ),
                             ),
                           ),
-                        );
-                      }
-                    ),
+                        ),
+                      );
+                    }
+                  ),
               ),
             ],
           ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddGameModal,
+        onPressed: () => _showGameModal(),
         backgroundColor: Colors.deepOrange, icon: const Icon(Icons.add, color: Colors.white), label: const Text('新規試合', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );

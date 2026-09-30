@@ -177,6 +177,11 @@ class DatabaseHelper {
     return await db.query('opponent_teams', orderBy: 'name ASC');
   }
 
+  Future<void> updateOpponentTeam(String id, Map<String, dynamic> teamData) async {
+    final db = await instance.database;
+    await db.update('opponent_teams', teamData, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<int> deleteOpponentTeam(String id) async {
     final db = await instance.database;
     return await db.delete('opponent_teams', where: 'id = ?', whereArgs: [id]);
@@ -294,6 +299,16 @@ class DatabaseHelper {
   Future<int> updateGameStatus(String gameId, String status) async {
     final db = await instance.database;
     return await db.update('games', {'status': status}, where: 'id = ?', whereArgs: [gameId]);
+  }
+
+  Future<void> updateGame(String id, Map<String, dynamic> gameData) async {
+    final db = await instance.database;
+    await db.update('games', gameData, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteGame(String id) async {
+    final db = await instance.database;
+    return await db.delete('games', where: 'id = ?', whereArgs: [id]);
   }
 
   // ==========================================
