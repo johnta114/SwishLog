@@ -559,6 +559,8 @@ class _EditStatDialogState extends State<_EditStatDialog> {
     final bool isFieldGoal = _action == '2P' || _action == '3P';
 
     return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       title: const Text('アクションの修正', style: TextStyle(fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(
         child: Column(
@@ -619,7 +621,7 @@ class _EditStatDialogState extends State<_EditStatDialog> {
                 child: Container(
                   width: 250,
                   height: 250 * (14.0 / 15.0),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+                  decoration: const BoxDecoration(color: Color(0xFFF6E8D7), border: Border(bottom: BorderSide(color: Colors.black54, width: 2))),
                   child: GestureDetector(
                     onTapDown: (details) {
                       setState(() {
@@ -669,7 +671,7 @@ class _MiniCourtPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintLine = Paint()..color = Colors.black26..style = PaintingStyle.stroke..strokeWidth = 2.0;
+    final paintLine = Paint()..color = Colors.black54..style = PaintingStyle.stroke..strokeWidth = 2.0;
     final double scale = size.width / 15.0;
     Offset mToPx(double x, double y) => Offset(x * scale, y * scale);
 
@@ -677,8 +679,8 @@ class _MiniCourtPainter extends CustomPainter {
     canvas.drawArc(Rect.fromCircle(center: mToPx(7.5, 5.8), radius: 1.8 * scale), 0, 3.1415 * 2, false, paintLine);
     final hoopCenter = mToPx(7.5, 1.575);
     canvas.drawLine(mToPx(6.6, 1.2), mToPx(8.4, 1.2), paintLine..strokeWidth = 3.0);
-    canvas.drawCircle(hoopCenter, 0.225 * scale, paintLine..color = Colors.deepOrange.withOpacity(0.5)..strokeWidth = 3.0);
-    paintLine.color = Colors.black26; paintLine.strokeWidth = 2.0;
+    canvas.drawCircle(hoopCenter, 0.225 * scale, paintLine..color = Colors.deepOrange..strokeWidth = 3.0);
+    paintLine.color = Colors.black54; paintLine.strokeWidth = 2.0;
     canvas.drawArc(Rect.fromCircle(center: hoopCenter, radius: 1.25 * scale), 0, 3.1415, false, paintLine);
     final path3p = Path();
     path3p.moveTo(mToPx(0.9, 0).dx, mToPx(0.9, 0).dy);
