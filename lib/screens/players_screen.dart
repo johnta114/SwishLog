@@ -24,6 +24,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -52,7 +53,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
               
               TextField(
                 controller: courtCtrl, 
-                decoration: const InputDecoration(labelText: 'コートネーム *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: 'コートネーム '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), // コートネームを強調
               ),
               const SizedBox(height: 16),

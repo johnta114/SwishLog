@@ -132,6 +132,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showLogs() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -170,6 +171,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showSubstitutionDialog() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -202,6 +204,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showBenchPlayers(Map<String, dynamic> playerOut) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -291,6 +294,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _recordFreeThrow() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
@@ -336,6 +340,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
@@ -372,6 +377,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showOpponentScoreModal() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(

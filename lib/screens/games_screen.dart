@@ -63,6 +63,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -151,6 +152,8 @@ class _GamesScreenState extends State<GamesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         title: const Text('削除の確認'),
         content: Text('vs $opponentName の試合を削除しますか？\n関連するすべてのスタッツとアクションログも削除されます。'),
         actions: [
@@ -185,6 +188,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -243,7 +247,7 @@ class _GamesScreenState extends State<GamesScreen> {
                       onSelected: (val) => setModalState(() => selectedOpponentId = val),
                     ),
                   ] else ...[
-                    TextField(controller: newOpponentCtrl, decoration: const InputDecoration(labelText: '対戦相手チーム名 *', border: OutlineInputBorder()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    TextField(controller: newOpponentCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '対戦相手チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     const SizedBox(height: 12),
                     TextField(controller: prefCtrl, decoration: const InputDecoration(labelText: '都道府県 (任意)', border: OutlineInputBorder())),
                   ],

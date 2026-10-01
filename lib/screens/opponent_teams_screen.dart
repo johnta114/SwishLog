@@ -43,6 +43,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -55,7 +56,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
               const SizedBox(height: 16),
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'チーム名 *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: 'チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
@@ -110,6 +111,8 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         title: const Text('削除の確認'),
         content: Text('「$name」を削除しますか？\n（関連する試合データにも影響が出る可能性があります）'),
         actions: [

@@ -62,6 +62,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -202,6 +203,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -249,13 +251,13 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                     if (isNewPlayer) ...[
                       Row(
                         children: [
-                          Expanded(child: TextField(controller: lastCtrl, decoration: const InputDecoration(labelText: '姓 (Last) *', border: OutlineInputBorder()))),
+                          Expanded(child: TextField(controller: lastCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '姓 (Last) '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()))),
                           const SizedBox(width: 8),
-                          Expanded(child: TextField(controller: firstCtrl, decoration: const InputDecoration(labelText: '名 (First) *', border: OutlineInputBorder()))),
+                          Expanded(child: TextField(controller: firstCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '名 (First) '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()))),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      TextField(controller: courtCtrl, decoration: const InputDecoration(labelText: 'コートネーム (表示名) *', border: OutlineInputBorder())),
+                      TextField(controller: courtCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: 'コートネーム (表示名) '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder())),
                       const SizedBox(height: 12),
                       TextField(
                         controller: birthCtrl, readOnly: true,
@@ -382,6 +384,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
@@ -395,11 +398,11 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                   children: [
                     const Text('選手情報の編集', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    TextField(controller: lastCtrl, decoration: const InputDecoration(labelText: '姓 (Last Name) *', border: OutlineInputBorder())),
+                    TextField(controller: lastCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '姓 (Last Name) '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder())),
                     const SizedBox(height: 12),
-                    TextField(controller: firstCtrl, decoration: const InputDecoration(labelText: '名 (First Name) *', border: OutlineInputBorder())),
+                    TextField(controller: firstCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '名 (First Name) '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder())),
                     const SizedBox(height: 12),
-                    TextField(controller: courtCtrl, decoration: const InputDecoration(labelText: 'コートネーム *', border: OutlineInputBorder())),
+                    TextField(controller: courtCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: 'コートネーム '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder())),
                     const SizedBox(height: 12),
                     TextField(
                       controller: birthCtrl, readOnly: true,
@@ -478,6 +481,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
   void _confirmDeletePlayer(String playerId, String courtName) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
