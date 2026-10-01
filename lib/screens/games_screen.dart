@@ -474,7 +474,8 @@ class _GamesScreenState extends State<GamesScreen> {
                             borderRadius: BorderRadius.circular(12),
                             onTap: () async {
                               if (status == 'completed') {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => AnalyticsScreen(gameId: game['id'].toString(), gameTitle: game['opponent'])));
+                                await Navigator.push(context, MaterialPageRoute(builder: (context) => AnalyticsScreen(gameId: game['id'].toString(), gameTitle: game['opponent'])));
+                                _loadData();
                               } else if (status == 'in_progress') {
                                 final starters = _activeRoster.take(5).toList();
                                 final bench = _activeRoster.skip(5).toList();

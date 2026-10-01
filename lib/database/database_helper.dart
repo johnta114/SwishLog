@@ -416,6 +416,11 @@ class DatabaseHelper {
     await db.delete('stats', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<void> updateStat(String id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.update('stats', data, where: 'id = ?', whereArgs: [id]);
+  }
+
   // 特定の相手得点を削除（Undo用）
   Future<void> deleteOpponentScore(String id) async {
     final db = await instance.database;
