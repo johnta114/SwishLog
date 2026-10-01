@@ -177,11 +177,11 @@ class _GamesScreenState extends State<GamesScreen> {
     }
 
     bool isNewOpponent = false;
-    String? selectedOpponentId;
+    String? selectedOpponentId = isEdit ? game['opponent_team_id']?.toString() : null;
     final newOpponentCtrl = TextEditingController();
     final prefCtrl = TextEditingController();
-    final dateCtrl = TextEditingController(text: DateTime.now().toString().split(' ')[0]);
-    bool isU12 = false;
+    final dateCtrl = TextEditingController(text: isEdit ? game['date'] : DateTime.now().toString().split(' ')[0]);
+    bool isU12 = isEdit ? (game['is_u12'] == 1) : false;
 
     showModalBottomSheet(
       context: context,
@@ -195,7 +195,7 @@ class _GamesScreenState extends State<GamesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('新規試合の作成', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(isEdit ? '試合の編集' : '新規試合の作成', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   
                   Container(
@@ -233,6 +233,7 @@ class _GamesScreenState extends State<GamesScreen> {
                       enableFilter: true,
                       requestFocusOnTap: true,
                       label: const Text('チーム名や都道府県を入力して検索'),
+                      initialSelection: selectedOpponentId,
                       dropdownMenuEntries: _knownOpponents.map((opp) {
                         return DropdownMenuEntry<String>(
                           value: opp['id'].toString(),
@@ -300,22 +301,26 @@ class _GamesScreenState extends State<GamesScreen> {
                         targetOpponentId = selectedOpponentId!;
                       }
 
-                      // SQLiteに試合を登録
-                      await DatabaseHelper.instance.insertGame({
+                      final data = {
                         'season_id': _activeSeasonId,
                         'date': dateCtrl.text,
                         'opponent_team_id': targetOpponentId,
                         'is_u12': isU12 ? 1 : 0,
-                        'status': 'not_started',
-                        'my_score': 0,
-                        'opp_score': 0,
-                      });
+                      };
+                      if (isEdit) {
+                        await DatabaseHelper.instance.updateGame(game['id'].toString(), data);
+                      } else {
+                        data['status'] = 'not_started';
+                        data['my_score'] = 0;
+                        data['opp_score'] = 0;
+                        await DatabaseHelper.instance.insertGame(data);
+                      }
 
                       if (mounted) Navigator.pop(context);
                       await _loadData();
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: const Text('作成する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: Text(isEdit ? '更新する' : '作成する', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 24),
                 ],
