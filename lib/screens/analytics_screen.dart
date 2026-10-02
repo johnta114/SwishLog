@@ -163,14 +163,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           children: [
             _buildHeaderFilters(isGameSpecific),
             Expanded(
-              child: isGameSpecific
-                ? TabBarView(
-                    children: [
-                      _buildStatsTab(),
-                      _buildPlayLogsTab(),
-                    ],
-                  )
-                : _buildStatsTab(),
+              child: TabBarView(
+                children: [
+                  _buildShotChartTab(),
+                  _buildPlayerStatsTab(),
+                  if (isGameSpecific) _buildPlayLogsTab(),
+                ],
+              )
             ),
           ],
         );
@@ -178,33 +177,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final appBar = AppBar(
       title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       centerTitle: false,
-      bottom: isGameSpecific
-        ? const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(icon: Icon(Icons.bar_chart), text: "スタッツ"),
-              Tab(icon: Icon(Icons.history), text: "試合ログ"),
-            ],
-          )
-        : null,
+      bottom: TabBar(
+        indicatorColor: Colors.white,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        tabs: [
+          const Tab(icon: Icon(Icons.pie_chart), text: "シュート分布"),
+          const Tab(icon: Icon(Icons.person), text: "個人スタッツ"),
+          if (isGameSpecific) const Tab(icon: Icon(Icons.history), text: "試合ログ"),
+        ],
+      ),
     );
 
-    if (isGameSpecific) {
-      return DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: appBar,
-          body: body,
-        ),
-      );
-    } else {
-      return Scaffold(
+    return DefaultTabController(
+      length: isGameSpecific ? 3 : 2,
+      child: Scaffold(
         appBar: appBar,
         body: body,
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildHeaderFilters(bool isGameSpecific) {
@@ -251,37 +242,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Text("選手絞り込み (分布図用):", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _selectedPlayerForChart,
-                      isExpanded: true,
-                      hint: const Text("全員"),
-                      items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text("全員")),
-                        ..._roster.map((p) => DropdownMenuItem<String?>(
-                          value: p['player_id'].toString(),
-                          child: Text(p['court_name'] ?? p['last_name'] ?? 'Unknown'),
-                        ))
-                      ],
-                      onChanged: (val) {
-                        setState(() => _selectedPlayerForChart = val);
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+
         ],
       ),
     );
@@ -290,6 +251,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildFilterChip(String label, int value) {
     return ChoiceChip(
       label: Text(label),
+      showCheckmark: false,
       selected: _selectedQuarter == value,
       onSelected: (selected) {
         if (selected) _updateQuarter(value);
@@ -297,12 +259,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       selectedColor: Colors.deepOrange.shade100,
       labelStyle: TextStyle(
         color: _selectedQuarter == value ? Colors.deepOrange.shade900 : Colors.black87,
-        fontWeight: _selectedQuarter == value ? FontWeight.bold : FontWeight.normal,
+        fontWeight: FontWeight.bold,
       ),
     );
   }
 
-  Widget _buildStatsTab() {
+  Widget _buildShotChartTab() {
     var shots = _rawStats.where((s) => (s['stat_type'] == '2P' || s['stat_type'] == '3P' || s['stat_type'] == 'FG') && s['pos_x'] != null).toList();
     if (_selectedPlayerForChart != null) {
       shots = shots.where((s) => s['player_id'].toString() == _selectedPlayerForChart).toList();
@@ -312,7 +274,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. シュート分布図（ヒートマップ風）
           Container(
             width: double.infinity,
             color: Colors.grey.shade100,
@@ -321,7 +282,38 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text("シュート分布 (FG/3P)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text("選手:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String?>(
+                            value: _selectedPlayerForChart,
+                            isExpanded: true,
+                            hint: const Text("全員"),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text("全員")),
+                              ..._roster.map((p) => DropdownMenuItem<String?>(
+                                value: p['player_id'].toString(),
+                                child: Text(p['court_name'] ?? p['last_name'] ?? 'Unknown'),
+                              ))
+                            ],
+                            onChanged: (val) {
+                              setState(() => _selectedPlayerForChart = val);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -348,8 +340,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ],
             ),
           ),
-          
-          // 2. 個人成績ランキング・スタッツ
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerStatsTab() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -712,8 +712,8 @@ class _EditStatDialogState extends State<_EditStatDialog> {
                   child: GestureDetector(
                     onTapDown: (details) {
                       setState(() {
-                        _posX = (details.localPosition.dx / 250) * 15.0;
-                        _posY = (details.localPosition.dy / (250 * (14.0 / 15.0))) * 14.0;
+                        _posX = details.localPosition.dx / 250;
+                        _posY = details.localPosition.dy / (250 * (14.0 / 15.0));
                       });
                     },
                     child: CustomPaint(
@@ -778,7 +778,7 @@ class _MiniCourtPainter extends CustomPainter {
 
     if (x != null && y != null) {
       final dotPaint = Paint()..color = isMade ? Colors.deepOrange : Colors.grey..style = PaintingStyle.fill;
-      canvas.drawCircle(mToPx(x!, y!), 6.0, dotPaint);
+      canvas.drawCircle(Offset(x! * size.width, y! * size.height), 6.0, dotPaint);
     }
   }
 
