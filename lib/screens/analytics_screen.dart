@@ -20,6 +20,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<Map<String, dynamic>> _rawStats = [];
   List<Map<String, dynamic>> _roster = [];
   String? _youtubeUrl;
+  String? _selectedPlayerForChart;
 
   @override
   void initState() {
@@ -27,8 +28,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     
     // SQLiteからスタッツデータと試合情報を取得
     final stats = await DatabaseHelper.instance.getRawStats(
@@ -54,7 +55,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   void _updateQuarter(int q) {
     setState(() => _selectedQuarter = q);
-    _loadData();
+    _loadData(showLoading: false);
   }
 
   // 生スタッツデータから個人成績を計算
@@ -66,7 +67,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final name = s['court_name'] ?? s['last_name'];
       
       if (!agg.containsKey(pid)) {
-        agg[pid] = {'name': name, 'PTS': 0, 'REB': 0, 'AST': 0, 'STL': 0, 'TO': 0, 'PF': 0, 'FGM': 0, 'FGA': 0, '3PM': 0, '3PA': 0};
+        agg[pid] = {'name': name, 'PTS': 0, 'REB': 0, 'AST': 0, 'STL': 0, 'TO': 0, 'PF': 0, 'FGM': 0, 'FGA': 0, '2PM': 0, '2PA': 0, '3PM': 0, '3PA': 0, 'FTM': 0, 'FTA': 0};
       }
       
       final type = s['stat_type'];
@@ -78,12 +79,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           agg[pid]!['FGM'] = (agg[pid]!['FGM'] as int) + 1;
           agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + (type == '3P' ? 3 : 2);
         }
+        if (type == '2P' || type == 'FG') {
+           agg[pid]!['2PA'] = (agg[pid]!['2PA'] as int) + 1;
+           if (isMade) agg[pid]!['2PM'] = (agg[pid]!['2PM'] as int) + 1;
+        }
         if (type == '3P') {
            agg[pid]!['3PA'] = (agg[pid]!['3PA'] as int) + 1;
            if (isMade) agg[pid]!['3PM'] = (agg[pid]!['3PM'] as int) + 1;
         }
       } else if (type == 'FT') {
-        if (isMade) agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + 1;
+        agg[pid]!['FTA'] = (agg[pid]!['FTA'] as int) + 1;
+        if (isMade) {
+          agg[pid]!['FTM'] = (agg[pid]!['FTM'] as int) + 1;
+          agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + 1;
+        }
       } else if (type == 'REB') {
         agg[pid]!['REB'] = (agg[pid]!['REB'] as int) + 1;
       } else if (type == 'AST') {
@@ -242,6 +251,37 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text("選手絞り込み (分布図用):", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: _selectedPlayerForChart,
+                      isExpanded: true,
+                      hint: const Text("全員"),
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text("全員")),
+                        ..._roster.map((p) => DropdownMenuItem<String?>(
+                          value: p['player_id'].toString(),
+                          child: Text(p['court_name'] ?? p['last_name'] ?? 'Unknown'),
+                        ))
+                      ],
+                      onChanged: (val) {
+                        setState(() => _selectedPlayerForChart = val);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -263,7 +303,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildStatsTab() {
-    final shots = _rawStats.where((s) => (s['stat_type'] == '2P' || s['stat_type'] == '3P' || s['stat_type'] == 'FG') && s['pos_x'] != null).toList();
+    var shots = _rawStats.where((s) => (s['stat_type'] == '2P' || s['stat_type'] == '3P' || s['stat_type'] == 'FG') && s['pos_x'] != null).toList();
+    if (_selectedPlayerForChart != null) {
+      shots = shots.where((s) => s['player_id'].toString() == _selectedPlayerForChart).toList();
+    }
 
     return SingleChildScrollView(
       child: Column(
@@ -314,38 +357,78 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 const Text("個人スタッツ一覧", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columnSpacing: 16,
-                    headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
-                    columns: const [
-                      DataColumn(label: Text("選手", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("PTS", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      DataColumn(label: Text("REB", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      DataColumn(label: Text("AST", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      DataColumn(label: Text("STL", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      DataColumn(label: Text("TO", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                      DataColumn(label: Text("FG%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                    ],
-                    rows: _aggregatedPlayerStats.map((p) {
-                      final fga = p['FGA'] as int;
-                      final fgm = p['FGM'] as int;
-                      final fgPct = fga > 0 ? ((fgm / fga) * 100).toStringAsFixed(1) : "0.0";
-                      
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(p['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold))),
-                          DataCell(Text("${p['PTS']}")),
-                          DataCell(Text("${p['REB']}")),
-                          DataCell(Text("${p['AST']}")),
-                          DataCell(Text("${p['STL']}")),
-                          DataCell(Text("${p['TO']}")),
-                          DataCell(Text("$fgPct%")),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 固定カラム（選手名）
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border(right: BorderSide(color: Colors.grey.shade300, width: 2)),
+                      ),
+                      child: DataTable(
+                        columnSpacing: 16,
+                        horizontalMargin: 12,
+                        headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
+                        columns: const [
+                          DataColumn(label: Text("選手", style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
-                      );
-                    }).toList(),
-                  ),
+                        rows: _aggregatedPlayerStats.map((p) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(p['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold))),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    // スクロール可能カラム（スタッツ）
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columnSpacing: 16,
+                          horizontalMargin: 12,
+                          headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
+                          columns: const [
+                            DataColumn(label: Text("PTS", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("REB", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("AST", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("STL", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("TO", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("2P%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("3P%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Text("FT%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                          ],
+                          rows: _aggregatedPlayerStats.map((p) {
+                            final pa2 = p['2PA'] as int;
+                            final pm2 = p['2PM'] as int;
+                            final pct2 = pa2 > 0 ? ((pm2 / pa2) * 100).toStringAsFixed(1) : "0.0";
+                            
+                            final pa3 = p['3PA'] as int;
+                            final pm3 = p['3PM'] as int;
+                            final pct3 = pa3 > 0 ? ((pm3 / pa3) * 100).toStringAsFixed(1) : "0.0";
+                            
+                            final fta = p['FTA'] as int;
+                            final ftm = p['FTM'] as int;
+                            final pctFt = fta > 0 ? ((ftm / fta) * 100).toStringAsFixed(1) : "0.0";
+                            
+                            return DataRow(
+                              cells: [
+                                DataCell(Text("${p['PTS']}")),
+                                DataCell(Text("${p['REB']}")),
+                                DataCell(Text("${p['AST']}")),
+                                DataCell(Text("${p['STL']}")),
+                                DataCell(Text("${p['TO']}")),
+                                DataCell(Text("$pct2% ($pm2/$pa2)")),
+                                DataCell(Text("$pct3% ($pm3/$pa3)")),
+                                DataCell(Text("$pctFt% ($ftm/$fta)")),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 )
               ],
             ),
@@ -377,7 +460,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId!);
               }
               Navigator.pop(context);
-              _loadData();
+              _loadData(showLoading: false);
             },
             child: const Text('削除する', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -399,7 +482,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           if (widget.gameId != null) {
             await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId!);
           }
-          _loadData();
+          _loadData(showLoading: false);
         },
       ),
     );
