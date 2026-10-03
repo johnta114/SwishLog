@@ -43,9 +43,7 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
@@ -111,8 +109,6 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
         title: const Text('削除の確認'),
         content: Text('「$name」を削除しますか？\n（関連する試合データにも影響が出る可能性があります）'),
         actions: [

@@ -65,9 +65,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -154,8 +152,6 @@ class _GamesScreenState extends State<GamesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
         title: const Text('削除の確認'),
         content: Text('vs $opponentName の試合を削除しますか？\n関連するすべてのスタッツとアクションログも削除されます。'),
         actions: [
@@ -191,9 +187,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {

@@ -29,6 +29,17 @@ class SwishLogApp extends StatelessWidget {
           centerTitle: true,
           elevation: 0,
         ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
       home: const MainScreen(),
     );

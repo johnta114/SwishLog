@@ -119,8 +119,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
         title: const Text("YouTubeリンクの登録"),
           content: TextField(
             controller: ctrl,
@@ -459,8 +457,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
         title: const Text('削除の確認'),
         content: const Text('このアクションを削除しますか？\n（得点の場合は総得点にも反映されます）'),
         actions: [
@@ -662,8 +658,6 @@ class _EditStatDialogState extends State<_EditStatDialog> {
     final bool isFieldGoal = _action == '2P' || _action == '3P';
 
     return AlertDialog(
-         backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
       title: const Text('アクションの修正', style: TextStyle(fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(
         child: Column(

@@ -46,8 +46,8 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   Future<void> _loadScores() async {
     try {
       await DatabaseHelper.instance.updateGameScoreTotals(widget.gameId);
-      final games = await DatabaseHelper.instance.getAllGames();
-      final thisGame = games.firstWhere((g) => g['id'].toString() == widget.gameId);
+      final thisGame = await DatabaseHelper.instance.getGameById(widget.gameId);
+      if (thisGame == null) return;
       
       // DBから既存のログを取得
       final rawStats = await DatabaseHelper.instance.getRawStats(gameId: widget.gameId);
@@ -58,14 +58,10 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
       for (var s in rawStats) {
         final type = s['stat_type'];
         final isMade = s['is_made'] == 1;
-        String label = type;
-        if (type == '2P' || type == '3P' || type == 'FG') label = "$type ${isMade ? '成功' : '失敗'}";
-        else if (type == 'FT') label = "フリースロー ${isMade ? '成功' : '失敗'}";
-        else if (type == 'REB') label = "リバウンド";
-        else if (type == 'AST') label = "アシスト";
-        else if (type == 'STL') label = "スティール";
-        else if (type == 'TO') label = "ターンオーバー";
-        else if (type == 'PF') label = "ファウル";
+        String label = StatActions.getLabel(type as String);
+        if (type == '2P' || type == '3P' || type == 'FG' || type == 'FT') {
+          label = "$label ${isMade ? '成功' : '失敗'}";
+        }
         else if (type == 'SUB') label = "交代でIN";
 
         loadedLogs.add(StatRecord(
@@ -134,7 +130,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showLogs() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -173,7 +168,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showSubstitutionDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -206,7 +200,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showBenchPlayers(Map<String, dynamic> playerOut) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -296,8 +289,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _recordFreeThrow() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -342,8 +333,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -379,8 +368,6 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   void _showOpponentScoreModal() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Padding(

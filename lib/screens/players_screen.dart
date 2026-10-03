@@ -24,7 +24,6 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

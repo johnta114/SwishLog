@@ -61,7 +61,6 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
           title: const Text('シーズン情報を編集', style: TextStyle(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -112,7 +111,6 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
           title: const Text('シーズンの削除', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           content: Text('「${currentSeason['name']}」を本当に削除しますか？\n※このシーズンに紐づく試合データやロスター情報は破棄されますが、選手自体のマスターデータは残ります。'),
           actions: [
@@ -151,9 +149,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -292,9 +288,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -473,9 +467,7 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -570,8 +562,6 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
   void _confirmDeletePlayer(String playerId, String courtName) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -650,7 +640,6 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                     if (_seasons.isNotEmpty)
                       PopupMenuButton<String>(
                         color: Colors.white,
-                        surfaceTintColor: Colors.transparent,
                         icon: const Icon(Icons.more_vert, color: Colors.grey),
                         onSelected: (val) {
                           if (val == 'edit') _showEditSeasonDialog();
