@@ -16,6 +16,7 @@ class _GamesScreenState extends State<GamesScreen> {
   List<Map<String, dynamic>> _games = [];
   List<Map<String, dynamic>> _knownOpponents = [];
   String? _activeSeasonId;
+  List<Map<String, dynamic>> _seasons = [];
   List<Map<String, dynamic>> _activeRoster = [];
   bool _isLoading = true;
 
@@ -52,6 +53,7 @@ class _GamesScreenState extends State<GamesScreen> {
     setState(() {
       _games = games;
       _knownOpponents = opponents;
+      _seasons = seasons;
       _activeSeasonId = activeSeason;
       _activeRoster = roster;
       _isLoading = false;
@@ -181,6 +183,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     bool isNewOpponent = false;
     String? selectedOpponentId = isEdit ? game['opponent_team_id']?.toString() : null;
+    String? selectedSeasonId = isEdit ? game['season_id']?.toString() : _activeSeasonId;
     final newOpponentCtrl = TextEditingController();
     final prefCtrl = TextEditingController();
     final dateCtrl = TextEditingController(text: isEdit ? game['date'] : DateTime.now().toString().split(' ')[0]);
@@ -253,6 +256,15 @@ class _GamesScreenState extends State<GamesScreen> {
                   ],
                   
                   const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: '対象シーズン', border: OutlineInputBorder()),
+                    value: selectedSeasonId,
+                    items: _seasons.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(s['name'].toString()))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => selectedSeasonId = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: dateCtrl, readOnly: true,
                     decoration: InputDecoration(
@@ -306,7 +318,7 @@ class _GamesScreenState extends State<GamesScreen> {
                       }
 
                       final data = {
-                        'season_id': _activeSeasonId,
+                        'season_id': selectedSeasonId,
                         'date': dateCtrl.text,
                         'opponent_team_id': targetOpponentId,
                         'is_u12': isU12 ? 1 : 0,
