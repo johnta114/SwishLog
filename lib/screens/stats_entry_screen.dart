@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../database/database_helper.dart';
+import '../utils/stat_actions.dart';
+
 
 class StatsEntryScreen extends StatefulWidget {
   final String gameId;
@@ -281,7 +283,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
         isOpponent: false,
         playerName: playerName,
         actionId: statType,
-        actionLabel: statType == '2P' || statType == '3P' ? 'シュート' : statType,
+        actionLabel: StatActions.getLabel(statType),
         isMade: isMade, x: x, y: y, time: DateTime.now(),
       ));
     });
@@ -548,17 +550,17 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
               children: [
                 Row(
                   children: [
-                    _buildStatBtn('フリースロー', 'FT', isPrimary: true),
-                    _buildStatBtn('リバウンド', 'REB'),
-                    _buildStatBtn('アシスト', 'AST'),
+                    _buildStatBtn('FT', isPrimary: true),
+                    _buildStatBtn('REB'),
+                    _buildStatBtn('AST'),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    _buildStatBtn('スティール', 'STL'),
-                    _buildStatBtn('ターンオーバー', 'TO'),
-                    _buildStatBtn('ファウル', 'PF'),
+                    _buildStatBtn('STL'),
+                    _buildStatBtn('TO'),
+                    _buildStatBtn('PF'),
                   ],
                 ),
               ],
@@ -602,7 +604,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     );
   }
 
-  Widget _buildStatBtn(String label, String actionId, {bool isPrimary = false}) {
+  Widget _buildStatBtn(String actionId, {bool isPrimary = false}) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2.0),
@@ -615,7 +617,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             }
           },
           style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: isPrimary ? Colors.deepOrange.shade100 : Colors.grey.shade200, foregroundColor: Colors.black87, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          child: Text(StatActions.getLabel(actionId), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../database/database_helper.dart';
+import '../utils/stat_actions.dart';
+
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -642,7 +644,7 @@ class _EditStatDialogState extends State<_EditStatDialog> {
   double? _posX;
   double? _posY;
 
-  final List<String> _actions = ['2P', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF', 'SUB'];
+
 
   @override
   void initState() {
@@ -685,7 +687,7 @@ class _EditStatDialogState extends State<_EditStatDialog> {
             DropdownButton<String>(
               isExpanded: true,
               value: _action,
-              items: _actions.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+              items: StatActions.labels.keys.map((a) => DropdownMenuItem(value: a, child: Text(StatActions.getLabel(a)))).toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _action = val);
               },
