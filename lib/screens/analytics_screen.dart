@@ -366,16 +366,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         border: Border(right: BorderSide(color: Colors.grey.shade300, width: 2)),
                       ),
                       child: DataTable(
+                        border: TableBorder(
+                          horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                          verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                        ),
+                        dataRowMinHeight: 56.0,
+                        dataRowMaxHeight: 56.0,
                         columnSpacing: 16,
                         horizontalMargin: 12,
                         headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
                         columns: const [
-                          DataColumn(label: Text("選手", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Expanded(child: Text("選手", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
                         ],
                         rows: _aggregatedPlayerStats.map((p) {
                           return DataRow(
                             cells: [
-                              DataCell(Text(p['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataCell(Center(child: Text(p['name'] as String, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)))),
                             ],
                           );
                         }).toList(),
@@ -386,18 +392,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
+                          border: TableBorder(
+                            horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                            verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                          ),
+                          dataRowMinHeight: 56.0,
+                          dataRowMaxHeight: 56.0,
                           columnSpacing: 16,
                           horizontalMargin: 12,
                           headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
                           columns: const [
-                            DataColumn(label: Text("PTS", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("REB", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("AST", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("STL", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("TO", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("2P%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("3P%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
-                            DataColumn(label: Text("FT%", style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                            DataColumn(label: Expanded(child: Text("得点", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("2P", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("3P", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("フリースロー", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("リバウンド", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("アシスト", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("スティール", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("ターンオーバー", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
+                            DataColumn(label: Expanded(child: Text("ファール", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)))),
                           ],
                           rows: _aggregatedPlayerStats.map((p) {
                             final pa2 = p['2PA'] as int;
@@ -414,14 +427,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             
                             return DataRow(
                               cells: [
-                                DataCell(Text("${p['PTS']}")),
-                                DataCell(Text("${p['REB']}")),
-                                DataCell(Text("${p['AST']}")),
-                                DataCell(Text("${p['STL']}")),
-                                DataCell(Text("${p['TO']}")),
-                                DataCell(Text("$pct2% ($pm2/$pa2)")),
-                                DataCell(Text("$pct3% ($pm3/$pa3)")),
-                                DataCell(Text("$pctFt% ($ftm/$fta)")),
+                                DataCell(Center(child: Text("${p['PTS']}", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("$pct2%\n($pm2/$pa2)", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("$pct3%\n($pm3/$pa3)", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("$pctFt%\n($ftm/$fta)", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("${p['REB']}", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("${p['AST']}", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("${p['STL']}", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("${p['TO']}", textAlign: TextAlign.center))),
+                                DataCell(Center(child: Text("${p['PF']}", textAlign: TextAlign.center))),
                               ],
                             );
                           }).toList(),
