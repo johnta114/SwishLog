@@ -157,7 +157,7 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getSeasonPlayerStats(String seasonId) async {
     final db = await instance.database;
     return await db.rawQuery('''
-      SELECT r.player_id, p.court_name, p.last_name, p.first_name, 
+      SELECT r.player_id, r.jersey_number, p.court_name, p.last_name, p.first_name, 
              COALESCE(SUM(CASE WHEN s.stat_type = '2P' AND s.is_made = 1 THEN 2 ELSE 0 END), 0) +
              COALESCE(SUM(CASE WHEN s.stat_type = '3P' AND s.is_made = 1 THEN 3 ELSE 0 END), 0) +
              COALESCE(SUM(CASE WHEN s.stat_type = 'FT' AND s.is_made = 1 THEN 1 ELSE 0 END), 0) as PTS,
@@ -178,7 +178,7 @@ class DatabaseHelper {
       LEFT JOIN games g ON r.season_id = g.season_id
       LEFT JOIN stats s ON s.game_id = g.id AND s.player_id = r.player_id
       WHERE r.season_id = ?
-      GROUP BY r.player_id, p.court_name, p.last_name, p.first_name
+      GROUP BY r.player_id, r.jersey_number, p.court_name, p.last_name, p.first_name
       ORDER BY PTS DESC
     ''', [seasonId]);
   }
