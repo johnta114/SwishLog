@@ -1,3 +1,6 @@
+import 'package:provider/provider.dart';
+import '../providers/app_settings_provider.dart';
+import 'settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../database/database_helper.dart';
@@ -22,7 +25,21 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
     _loadData();
   }
 
+
+  String? _lastLoadedSeasonId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = Provider.of<AppSettingsProvider>(context);
+    if (settings.isLoaded && _lastLoadedSeasonId != settings.activeSeasonId) {
+      _lastLoadedSeasonId = settings.activeSeasonId;
+      _loadData();
+    }
+  }
+
   Future<void> _loadData() async {
+
     setState(() => _isLoading = true);
     final seasons = await DatabaseHelper.instance.getSeasons();
     
@@ -613,6 +630,12 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
           child: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))

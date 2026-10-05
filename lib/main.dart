@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import 'providers/app_settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'screens/games_screen.dart'; 
 import 'screens/season_roster_screen.dart';
@@ -5,7 +7,14 @@ import 'screens/opponent_teams_screen.dart'; // 追加
 import 'screens/home_screen.dart'; 
 
 void main() {
-  runApp(const SwishLogApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppSettingsProvider()),
+      ],
+      child: const SwishLogApp(),
+    ),
+  );
 }
 
 class SwishLogApp extends StatelessWidget {

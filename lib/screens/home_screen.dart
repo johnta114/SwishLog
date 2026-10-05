@@ -1,3 +1,6 @@
+import 'package:provider/provider.dart';
+import '../providers/app_settings_provider.dart';
+import 'settings_screen.dart';
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../main.dart';
@@ -24,20 +27,31 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final seasons = await DatabaseHelper.instance.getSeasons();
-    if (seasons.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _activeSeason = null;
-          _isLoading = false;
-        });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = Provider.of<AppSettingsProvider>(context);
+    if (settings.isLoaded) {
+      if (_activeSeason == null || _activeSeason!['id'] != settings.activeSeasonId) {
+        _loadData(settings.activeSeasonId);
       }
+    }
+  }
+
+  Future<void> _loadData([String? seasonId]) async {
+
+    setState(() => _isLoading = true);
+    if (seasonId == null) {
+      if (mounted) setState(() { _isLoading = false; _activeSeason = null; });
       return;
     }
-
-    final activeSeason = seasons.first;
+    final seasons = await DatabaseHelper.instance.getSeasons();
+    final activeSeason = seasons.firstWhere((s) => s['id'] == seasonId, orElse: () => <String, dynamic>{});
+    if (activeSeason.isEmpty) {
+      if (mounted) setState(() { _isLoading = false; _activeSeason = null; });
+      return;
+    }
     final games = await DatabaseHelper.instance.getAllGames();
     final seasonGames = games.where((g) => g['season_id'] == activeSeason['id']).toList();
 
@@ -172,6 +186,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))

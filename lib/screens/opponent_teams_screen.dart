@@ -1,3 +1,4 @@
+import 'settings_screen.dart';
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -161,6 +162,10 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
 
               });
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),

@@ -1,3 +1,4 @@
+import 'settings_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'stats_entry_screen.dart';
