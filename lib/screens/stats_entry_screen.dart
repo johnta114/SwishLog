@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
+import '../main.dart';
 
 
 class StatsEntryScreen extends StatefulWidget {
@@ -414,7 +415,13 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), 
+        title: GestureDetector(
+          onTap: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            mainScreenKey.currentState?.goToHome();
+          },
+          child: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ), 
         centerTitle: false, 
         toolbarHeight: 48,
         actions: [

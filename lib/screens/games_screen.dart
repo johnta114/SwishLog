@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'stats_entry_screen.dart';
-import 'analytics_screen.dart';
 import '../database/database_helper.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import '../main.dart';
 
 class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});
@@ -357,7 +357,13 @@ class _GamesScreenState extends State<GamesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), 
+        title: GestureDetector(
+          onTap: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            mainScreenKey.currentState?.goToHome();
+          },
+          child: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ), 
         centerTitle: false,
         actions: [
           IconButton(

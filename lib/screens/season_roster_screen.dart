@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../database/database_helper.dart';
+import '../main.dart';
 
 class SeasonRosterScreen extends StatefulWidget {
   const SeasonRosterScreen({super.key});
@@ -604,7 +605,13 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: GestureDetector(
+          onTap: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            mainScreenKey.currentState?.goToHome();
+          },
+          child: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ),
         centerTitle: false,
       ),
       body: _isLoading 

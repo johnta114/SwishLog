@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/games_screen.dart'; 
 import 'screens/season_roster_screen.dart';
 import 'screens/opponent_teams_screen.dart'; // 追加
-import 'screens/analytics_screen.dart'; 
+import 'screens/home_screen.dart'; 
 
 void main() {
   runApp(const SwishLogApp());
@@ -41,27 +41,36 @@ class SwishLogApp extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
         ),
       ),
-      home: const MainScreen(),
+      home: MainScreen(),
     );
   }
 }
 
+final GlobalKey<MainScreenState> mainScreenKey = GlobalKey<MainScreenState>();
+
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  MainScreen({Key? key}) : super(key: key ?? mainScreenKey);
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() => MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class MainScreenState extends State<MainScreen> {
+  void goToHome() {
+    if (_currentIndex != 0) {
+      setState(() {
+        _currentIndex = 0;
+      });
+    }
+  }
   int _currentIndex = 0;
 
   // 各タブの画面（4つに拡張）
   final List<Widget> _screens = [
+    const HomeScreen(),     // 0. ホーム（旧 分析）
     const GamesScreen(),         // 1. 試合一覧
     const SeasonRosterScreen(),  // 2. チーム・名簿管理
     const OpponentTeamsScreen(), // 3. 対戦相手管理
-    const AnalyticsScreen(),     // 4. 分析・振り返り画面
   ];
 
   @override
@@ -85,6 +94,10 @@ class _MainScreenState extends State<MainScreen> {
           unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'ホーム',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.sports_basketball),
             label: '試合',
           ),
@@ -95,10 +108,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.shield),
             label: '対戦相手',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: '分析',
           ),
         ],
       ),
