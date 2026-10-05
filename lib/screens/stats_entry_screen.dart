@@ -60,10 +60,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
         final type = s['stat_type'];
         final isMade = s['is_made'] == 1;
         String label = StatActions.getLabel(type as String);
-        if (type == '2P' || type == '3P' || type == 'FG' || type == 'FT') {
-          label = "$label ${isMade ? '成功' : '失敗'}";
-        }
-        else if (type == 'SUB') label = "交代でIN";
+        if (type == 'SUB') label = "交代でIN";
 
         loadedLogs.add(StatRecord(
           dbId: s['id'].toString(),
@@ -148,7 +145,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                             itemCount: _logs.length,
                             itemBuilder: (context, index) {
                               final log = _logs[_logs.length - 1 - index];
-                              final isMadeText = log.isMade == null ? '' : (log.isMade! ? ' (成功)' : ' (失敗)');
+                              final isMadeText = log.isMade == null ? '' : (log.isMade! ? ' 成功' : ' 失敗');
                               return ListTile(
                                 leading: Icon(log.isOpponent ? Icons.warning : Icons.history, color: log.isOpponent ? Colors.red : Colors.grey),
                                 title: Text("${log.playerName} - ${log.actionLabel}$isMadeText"),
@@ -305,12 +302,12 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                     OutlinedButton(
                       onPressed: () { _saveStatToDB(statType: 'FT', isMade: false); Navigator.pop(context); },
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-                      child: const Text('失敗 (Miss)', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      child: const Text('失敗', style: TextStyle(color: Colors.grey, fontSize: 16)),
                     ),
                     ElevatedButton(
                       onPressed: () { _saveStatToDB(statType: 'FT', isMade: true); Navigator.pop(context); },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-                      child: const Text('成功 (Made)', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      child: const Text('成功', style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),
                   ],
                 ),
@@ -349,12 +346,12 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                     OutlinedButton(
                       onPressed: () { _saveStatToDB(statType: statType, isMade: false, x: dx, y: dy); Navigator.pop(context); },
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-                      child: const Text('失敗 (Miss)', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      child: const Text('失敗', style: TextStyle(color: Colors.grey, fontSize: 16)),
                     ),
                     ElevatedButton(
                       onPressed: () { _saveStatToDB(statType: statType, isMade: true, x: dx, y: dy); Navigator.pop(context); },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-                      child: const Text('成功 (Made)', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      child: const Text('成功', style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),
                   ],
                 ),
@@ -488,7 +485,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _logs.isEmpty ? '▶ まだ記録はありません' : "▶ 最新: ${_logs.last.playerName} - ${_logs.last.actionLabel} ${_logs.last.isMade == null ? '' : (_logs.last.isMade! ? '(成功)' : '(失敗)')}",
+                    _logs.isEmpty ? '▶ まだ記録はありません' : "▶ 最新: ${_logs.last.playerName} - ${_logs.last.actionLabel}${_logs.last.isMade == null ? '' : (_logs.last.isMade! ? ' 成功' : ' 失敗')}",
                     style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 13),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),

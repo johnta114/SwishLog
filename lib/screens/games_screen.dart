@@ -1,3 +1,4 @@
+import 'game_analytics_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_settings_provider.dart';
 import 'settings_screen.dart';
@@ -454,7 +455,7 @@ class _GamesScreenState extends State<GamesScreen> {
                                   onTap: () async {
                                     final status = game['status'] ?? 'completed';
                                     if (status == 'completed') {
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: const [], bench: const [])));
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => GameAnalyticsScreen(gameId: game['id'].toString(), gameTitle: 'vs ${game['opponent']}')));
                                     } else if (status == 'in_progress') {
                                       final starters = _activeRoster.take(5).toList();
                                       final bench = _activeRoster.skip(5).toList();
