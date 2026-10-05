@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+content = """import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../main.dart';
 
@@ -143,9 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _formatPercentage(int made, int attempted) {
-    if (attempted == 0) return '0.0%\n(0/0)';
+    if (attempted == 0) return '0.0%\\n(0/0)';
     final percent = (made / attempted * 100).toStringAsFixed(1);
-    return '$percent%\n($made/$attempted)';
+    return '$percent%\\n($made/$attempted)';
   }
 
   Widget _buildCellContent(String text, {bool isHeader = false}) {
@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
         : _activeSeason == null 
-            ? const Center(child: Text('シーズンが登録されていません。\n「チーム管理」タブからシーズンを作成してください。', textAlign: TextAlign.center))
+            ? const Center(child: Text('シーズンが登録されていません。\\n「チーム管理」タブからシーズンを作成してください。', textAlign: TextAlign.center))
             : SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -285,3 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+"""
+with open('lib/screens/home_screen.dart', 'w') as f:
+    f.write(content)
+
