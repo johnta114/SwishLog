@@ -3,6 +3,7 @@ import '../providers/app_settings_provider.dart';
 import 'settings_screen.dart';
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
+import '../widgets/player_stats_table.dart';
 import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -156,12 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _formatPercentage(int made, int attempted) {
-    if (attempted == 0) return '0.0%\n(0/0)';
-    final percent = (made / attempted * 100).toStringAsFixed(1);
-    return '$percent%\n($made/$attempted)';
-  }
-
   Widget _buildCellContent(String text, {bool isHeader = false}) {
     return Center(
       child: Text(
@@ -252,90 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: Text('このシーズンの選手データがありません。', style: TextStyle(color: Colors.black54))),
                         )
                       else
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 左側の固定カラム (背番号 + 選手名)
-                              DataTable(
-                                headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                                dataRowMinHeight: 64,
-                                dataRowMaxHeight: 64,
-                                headingRowHeight: 48,
-                                columnSpacing: 16,
-                                horizontalMargin: 16,
-                                border: TableBorder(
-                                  right: BorderSide(color: Colors.grey.shade300),
-                                  horizontalInside: BorderSide(color: Colors.grey.shade300),
-                                ),
-                                columns: [
-                                  DataColumn(label: _buildCellContent('No.', isHeader: true)),
-                                  DataColumn(label: _buildCellContent('選手', isHeader: true)),
-                                ],
-                                rows: _playerStats.map((stat) {
-                                  final name = stat['court_name']?.isNotEmpty == true 
-                                      ? stat['court_name'] 
-                                      : '${stat['last_name'] ?? ''} ${stat['first_name'] ?? ''}';
-                                  final number = stat['jersey_number']?.toString() ?? '-';
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(_buildCellContent(number)),
-                                      DataCell(_buildCellContent(name, isHeader: true)),
-                                    ]
-                                  );
-                                }).toList(),
-                              ),
-                              // 右側のスクロール可能なカラム (スタッツ)
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: DataTable(
-                                    headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                                    dataRowMinHeight: 64,
-                                    dataRowMaxHeight: 64,
-                                    headingRowHeight: 48,
-                                    columnSpacing: 24,
-                                    horizontalMargin: 16,
-                                    border: TableBorder(
-                                      horizontalInside: BorderSide(color: Colors.grey.shade300),
-                                      verticalInside: BorderSide(color: Colors.grey.shade300),
-                                    ),
-                                    columns: [
-                                      DataColumn(label: _buildCellContent('得点', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('2P', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('3P', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('フリースロー', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('リバウンド', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('アシスト', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('スティール', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('ターンオーバー', isHeader: true)),
-                                      DataColumn(label: _buildCellContent('ファール', isHeader: true)),
-                                    ],
-                                    rows: _playerStats.map((stat) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(_buildCellContent('${stat['PTS'] ?? 0}')),
-                                          DataCell(_buildCellContent(_formatPercentage(stat['FGM2'] ?? 0, stat['FGA2'] ?? 0))),
-                                          DataCell(_buildCellContent(_formatPercentage(stat['FGM3'] ?? 0, stat['FGA3'] ?? 0))),
-                                          DataCell(_buildCellContent(_formatPercentage(stat['FTM'] ?? 0, stat['FTA'] ?? 0))),
-                                          DataCell(_buildCellContent('${stat['REB'] ?? 0}')),
-                                          DataCell(_buildCellContent('${stat['AST'] ?? 0}')),
-                                          DataCell(_buildCellContent('${stat['STL'] ?? 0}')),
-                                          DataCell(_buildCellContent('${stat['TOV'] ?? 0}')),
-                                          DataCell(_buildCellContent('${stat['FOUL'] ?? 0}')),
-                                        ]
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        PlayerStatsTable(stats: _playerStats),
                         const SizedBox(height: 80),
                     ],
                   ),

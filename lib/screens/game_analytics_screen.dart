@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
+import '../widgets/player_stats_table.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 class GameAnalyticsScreen extends StatefulWidget {
@@ -73,7 +74,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
           final rosterEntry = _roster.firstWhere((r) => r['player_id'].toString() == pid);
           jNum = rosterEntry['jersey_number']?.toString() ?? '-';
         } catch (_) {}
-        agg[pid] = {'name': name, 'jersey_number': jNum, 'PTS': 0, 'REB': 0, 'AST': 0, 'STL': 0, 'TO': 0, 'PF': 0, 'FGM': 0, 'FGA': 0, '2PM': 0, '2PA': 0, '3PM': 0, '3PA': 0, 'FTM': 0, 'FTA': 0};
+        agg[pid] = {'name': name, 'jersey_number': jNum, 'PTS': 0, 'REB': 0, 'AST': 0, 'STL': 0, 'TOV': 0, 'FOUL': 0, 'FGM': 0, 'FGA': 0, 'FGM2': 0, 'FGA2': 0, 'FGM3': 0, 'FGA3': 0, 'FTM': 0, 'FTA': 0};
       }
       
       final type = s['stat_type'];
@@ -86,12 +87,12 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
           agg[pid]!['PTS'] = (agg[pid]!['PTS'] as int) + (type == '3P' ? 3 : 2);
         }
         if (type == '2P' || type == 'FG') {
-           agg[pid]!['2PA'] = (agg[pid]!['2PA'] as int) + 1;
-           if (isMade) agg[pid]!['2PM'] = (agg[pid]!['2PM'] as int) + 1;
+           agg[pid]!['FGA2'] = (agg[pid]!['FGA2'] as int) + 1;
+           if (isMade) agg[pid]!['FGM2'] = (agg[pid]!['FGM2'] as int) + 1;
         }
         if (type == '3P') {
-           agg[pid]!['3PA'] = (agg[pid]!['3PA'] as int) + 1;
-           if (isMade) agg[pid]!['3PM'] = (agg[pid]!['3PM'] as int) + 1;
+           agg[pid]!['FGA3'] = (agg[pid]!['FGA3'] as int) + 1;
+           if (isMade) agg[pid]!['FGM3'] = (agg[pid]!['FGM3'] as int) + 1;
         }
       } else if (type == 'FT') {
         agg[pid]!['FTA'] = (agg[pid]!['FTA'] as int) + 1;
@@ -106,9 +107,9 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
       } else if (type == 'STL') {
         agg[pid]!['STL'] = (agg[pid]!['STL'] as int) + 1;
       } else if (type == 'TO') {
-        agg[pid]!['TO'] = (agg[pid]!['TO'] as int) + 1;
+        agg[pid]!['TOV'] = (agg[pid]!['TOV'] as int) + 1;
       } else if (type == 'PF') {
-        agg[pid]!['PF'] = (agg[pid]!['PF'] as int) + 1;
+        agg[pid]!['FOUL'] = (agg[pid]!['FOUL'] as int) + 1;
       }
     }
     
@@ -358,118 +359,21 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   }
 
 
-  String _formatPercentage(int made, int attempted) {
-    if (attempted == 0) return '0.0%\n(0/0)';
-    final percent = (made / attempted * 100).toStringAsFixed(1);
-    return '$percent%\n($made/$attempted)';
-  }
-
-  Widget _buildCellContent(String text, {bool isHeader = false}) {
-    return Center(
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: isHeader ? FontWeight.bold : FontWeight.normal),
-      ),
-    );
-  }
-
   Widget _buildPlayerStatsTab() {
-    return _aggregatedPlayerStats.isEmpty 
-      ? const Center(child: Text("この試合・クォーターの記録はありません"))
-      : SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('個人スタッツ一覧', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    color: Colors.white,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 左側の固定カラム
-                      DataTable(
-                        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                        dataRowMinHeight: 64,
-                        dataRowMaxHeight: 64,
-                        headingRowHeight: 48,
-                        columnSpacing: 16,
-                        horizontalMargin: 16,
-                        border: TableBorder(
-                          right: BorderSide(color: Colors.grey.shade300),
-                          horizontalInside: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        columns: [
-                          DataColumn(label: _buildCellContent('No.', isHeader: true)),
-                          DataColumn(label: _buildCellContent('選手', isHeader: true)),
-                        ],
-                        rows: _aggregatedPlayerStats.map((p) {
-                          return DataRow(
-                            cells: [
-                              DataCell(_buildCellContent(p['jersey_number'] as String)),
-                              DataCell(_buildCellContent(p['name'] as String, isHeader: true)),
-                            ]
-                          );
-                        }).toList(),
-                      ),
-                      // 右側のスクロール可能なカラム
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                            dataRowMinHeight: 64,
-                            dataRowMaxHeight: 64,
-                            headingRowHeight: 48,
-                            columnSpacing: 24,
-                            horizontalMargin: 16,
-                            border: TableBorder(
-                              horizontalInside: BorderSide(color: Colors.grey.shade300),
-                              verticalInside: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            columns: [
-                              DataColumn(label: _buildCellContent('得点', isHeader: true)),
-                              DataColumn(label: _buildCellContent('2P', isHeader: true)),
-                              DataColumn(label: _buildCellContent('3P', isHeader: true)),
-                              DataColumn(label: _buildCellContent('フリースロー', isHeader: true)),
-                              DataColumn(label: _buildCellContent('リバウンド', isHeader: true)),
-                              DataColumn(label: _buildCellContent('アシスト', isHeader: true)),
-                              DataColumn(label: _buildCellContent('スティール', isHeader: true)),
-                              DataColumn(label: _buildCellContent('ターンオーバー', isHeader: true)),
-                              DataColumn(label: _buildCellContent('ファール', isHeader: true)),
-                            ],
-                            rows: _aggregatedPlayerStats.map((p) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(_buildCellContent('${p['PTS']}')),
-                                  DataCell(_buildCellContent(_formatPercentage(p['2PM'] as int, p['2PA'] as int))),
-                                  DataCell(_buildCellContent(_formatPercentage(p['3PM'] as int, p['3PA'] as int))),
-                                  DataCell(_buildCellContent(_formatPercentage(p['FTM'] as int, p['FTA'] as int))),
-                                  DataCell(_buildCellContent('${p['REB']}')),
-                                  DataCell(_buildCellContent('${p['AST']}')),
-                                  DataCell(_buildCellContent('${p['STL']}')),
-                                  DataCell(_buildCellContent('${p['TO']}')),
-                                  DataCell(_buildCellContent('${p['PF']}')),
-                                ]
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 80),
-              ],
-            ),
-          )
-        );
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('個人スタッツ一覧', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            PlayerStatsTable(stats: _aggregatedPlayerStats),
+            const SizedBox(height: 80),
+          ],
+        ),
+      )
+    );
   }
 
   void _confirmDeleteStat(Map<String, dynamic> stat) {
