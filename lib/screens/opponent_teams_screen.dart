@@ -15,8 +15,11 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
   bool _isLoading = true;
 
   // 検索用
-  String _searchQuery = '';
-  final TextEditingController _searchCtrl = TextEditingController();
+  bool _isSearching = false;
+  String _searchName = '';
+  String _searchPref = '';
+  final TextEditingController _nameCtrl = TextEditingController();
+  final TextEditingController _prefCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -128,131 +131,192 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     final filteredOpponents = _opponents.where((opp) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      final name = (opp['name'] ?? '').toLowerCase();
-      final pref = (opp['prefecture'] ?? '').toLowerCase();
-      return name.contains(query) || pref.contains(query);
+      final matchName = _searchName.isEmpty || (opp['name'] ?? '').toLowerCase().contains(_searchName.toLowerCase());
+      final matchPref = _searchPref.isEmpty || (opp['prefecture'] ?? '').toLowerCase().contains(_searchPref.toLowerCase());
+      return matchName && matchPref;
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('SwishLog', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          // 検索バー
-          Container(
-            color: Colors.deepOrange,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              controller: _searchCtrl,
-              decoration: InputDecoration(
-                hintText: 'チーム名・都道府県で検索', hintStyle: const TextStyle(color: Colors.black54), prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                suffixIcon: _searchQuery.isNotEmpty 
-                  ? IconButton(icon: const Icon(Icons.clear, color: Colors.black54), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
-                  : null,
-                filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 0), border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-              ),
-              onChanged: (val) => setState(() => _searchQuery = val),
-            ),
-          ),
-          
-          // リスト表示
-          Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
-              : filteredOpponents.isEmpty
-                ? const Center(child: Text('まだ対戦相手が登録されていません。\n右下の＋ボタンから追加してください。', textAlign: TextAlign.center))
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 80, top: 8),
-                    itemCount: filteredOpponents.length,
-                    itemBuilder: (context, index) {
-                      final opp = filteredOpponents[index];
-                      // Nullセーフ処理
-                      final name = opp['name'] as String? ?? '名称未設定';
-                      final pref = opp['prefecture'] as String? ?? '';
-                      final contact = opp['coach_contact'] as String? ?? '';
-                      final notes = opp['notes'] as String? ?? '';
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
 
-                      return Slidable(
-                        key: ValueKey(opp['id'].toString()),
-                        endActionPane: ActionPane(
-                          motion: const DrawerMotion(),
-                          extentRatio: 0.5,
-                          children: [
-                            CustomSlidableAction(
-                              onPressed: (context) => _showOpponentModal(opp),
-                              backgroundColor: Colors.transparent,
-                              foregroundColor: Colors.blue,
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Container(
-                                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
-                                child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.edit), SizedBox(height: 4), Text('編集', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
-                              ),
-                            ),
-                            CustomSlidableAction(
-                              onPressed: (context) => _confirmDelete(opp['id'].toString(), name),
-                              backgroundColor: Colors.transparent,
-                              foregroundColor: Colors.red,
-                              padding: const EdgeInsets.only(left: 8, right: 8),
-                              child: Container(
-                                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-                                child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.delete), SizedBox(height: 4), Text('削除', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
-                              ),
-                            ),
-                          ],
-                        ),
-                        child: Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        elevation: 0, color: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-                        child: ExpansionTile(
-                          leading: CircleAvatar(backgroundColor: Colors.blueGrey.shade100, child: const Icon(Icons.shield, color: Colors.blueGrey)),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          subtitle: Text(pref.isNotEmpty ? '📍 $pref' : '都道府県未設定', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                          children: [
-                            const Divider(height: 1),
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.contact_phone, size: 16, color: Colors.grey), const SizedBox(width: 8),
-                                      Text(contact.isNotEmpty ? contact : '連絡先未登録', style: const TextStyle(fontSize: 14)),
-                                    ],
+              });
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+                    : filteredOpponents.isEmpty
+                        ? const Center(child: Text('対戦相手が登録されていません。\n右下のボタンから追加してください。', textAlign: TextAlign.center))
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 80, top: 8),
+                            itemCount: filteredOpponents.length,
+                            itemBuilder: (context, index) {
+                              final opp = filteredOpponents[index];
+                              return Slidable(
+                                key: ValueKey(opp['id']),
+                                endActionPane: ActionPane(
+                                  motion: const DrawerMotion(),
+                                  extentRatio: 0.5,
+                                  children: [
+                                    CustomSlidableAction(
+                                      onPressed: (context) => _showOpponentModal(opp),
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: Colors.blue,
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: Container(
+                                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
+                                        child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.edit), SizedBox(height: 4), Text('編集', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                                      ),
+                                    ),
+                                    CustomSlidableAction(
+                                      onPressed: (context) => _confirmDelete(opp['id'].toString(), opp['name']),
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: Colors.red,
+                                      padding: const EdgeInsets.only(left: 8, right: 16),
+                                      child: Container(
+                                        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
+                                        child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.delete), SizedBox(height: 4), Text('削除', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey.shade200),
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.blueGrey.shade100,
+                                          child: const Icon(Icons.shield, color: Colors.blueGrey),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(opp['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.location_on, size: 14, color: Colors.redAccent),
+                                                  const SizedBox(width: 4),
+                                                  Text(opp['prefecture'] ?? '未設定', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.notes, size: 16, color: Colors.grey), const SizedBox(width: 8),
-                                      Expanded(child: Text(notes.isNotEmpty ? notes : 'メモはありません。', style: const TextStyle(fontSize: 14))),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-                              ),
-                            )
-                          ],
-                        ),
-                        ),
-                      );
-                    }
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: AnimatedCrossFade(
+              duration: const Duration(milliseconds: 200),
+              crossFadeState: _isSearching ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+              alignment: Alignment.topCenter,
+              sizeCurve: Curves.easeInOut,
+              secondChild: const SizedBox(width: double.infinity, height: 0),
+              firstChild: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                   ),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _nameCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'チーム名',
+                              isDense: true,
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _searchName.isNotEmpty 
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      _nameCtrl.clear();
+                                      setState(() => _searchName = '');
+                                    },
+                                  )
+                                : null,
+                            ),
+                            onChanged: (val) => setState(() => _searchName = val),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _prefCtrl,
+                            decoration: InputDecoration(
+                              labelText: '都道府県',
+                              isDense: true,
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _searchPref.isNotEmpty 
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      _prefCtrl.clear();
+                                      setState(() => _searchPref = '');
+                                    },
+                                  )
+                                : null,
+                            ),
+                            onChanged: (val) => setState(() => _searchPref = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showOpponentModal(),
-        backgroundColor: Colors.deepOrange, icon: const Icon(Icons.add, color: Colors.white), label: const Text('チーム追加', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.deepOrange,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('チーム追加', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 }
+
