@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../providers/app_settings_provider.dart';
 import 'settings_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -38,20 +40,36 @@ class _GamesScreenState extends State<GamesScreen> {
     _loadData();
   }
 
+
+  String? _lastLoadedSeasonId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = Provider.of<AppSettingsProvider>(context);
+    if (settings.isLoaded && _lastLoadedSeasonId != settings.activeSeasonId) {
+      _lastLoadedSeasonId = settings.activeSeasonId;
+      _loadData();
+    }
+  }
+
   // SQLiteからデータを読み込む
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     final games = await DatabaseHelper.instance.getAllGames();
     final opponents = await DatabaseHelper.instance.getOpponentTeams();
     final seasons = await DatabaseHelper.instance.getSeasons();
     
-    String? activeSeason;
+    final settings = Provider.of<AppSettingsProvider>(context, listen: false);
+    String? activeSeason = settings.activeSeasonId ?? (seasons.isNotEmpty ? seasons.first['id'] : null);
+
     List<Map<String, dynamic>> roster = [];
-    if (seasons.isNotEmpty) {
-      activeSeason = seasons.first['id']; // 最新のシーズンをアクティブとする
-      roster = await DatabaseHelper.instance.getRosterForSeason(activeSeason!);
+    if (activeSeason != null) {
+      roster = await DatabaseHelper.instance.getRosterForSeason(activeSeason);
     }
+
 
     setState(() {
       _games = games;
@@ -375,6 +393,10 @@ class _GamesScreenState extends State<GamesScreen> {
 
               });
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),

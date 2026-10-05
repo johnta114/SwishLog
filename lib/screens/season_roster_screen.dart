@@ -34,12 +34,14 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
     final settings = Provider.of<AppSettingsProvider>(context);
     if (settings.isLoaded && _lastLoadedSeasonId != settings.activeSeasonId) {
       _lastLoadedSeasonId = settings.activeSeasonId;
+      // グローバル設定が変更されたら、画面内のドロップダウンもそれに合わせる
+      _selectedSeasonId = settings.activeSeasonId;
       _loadData();
     }
   }
 
   Future<void> _loadData() async {
-
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final seasons = await DatabaseHelper.instance.getSeasons();
     
@@ -49,7 +51,8 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
 
     if (seasons.isNotEmpty) {
       if (_selectedSeasonId == null || !seasons.any((s) => s['id'] == _selectedSeasonId)) {
-        _selectedSeasonId = seasons.first['id'];
+        final settings = Provider.of<AppSettingsProvider>(context, listen: false);
+        _selectedSeasonId = settings.activeSeasonId ?? seasons.first['id'];
       }
       await _loadRoster(_selectedSeasonId!);
     } else {
