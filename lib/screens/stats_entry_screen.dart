@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
+import '../providers/app_settings_provider.dart';
 import '../main.dart';
 
 
@@ -596,19 +598,41 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
   }
 
   Widget _buildStatBtn(String actionId, {bool isPrimary = false}) {
+    final settings = Provider.of<AppSettingsProvider>(context);
+    final isEnabled = settings.isActionEnabled(actionId);
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2.0),
         child: ElevatedButton(
-          onPressed: () {
-            if (actionId == 'FT') {
-              _recordFreeThrow();
-            } else {
-              _saveStatToDB(statType: actionId);
-            }
-          },
-          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: isPrimary ? Colors.deepOrange.shade100 : Colors.grey.shade200, foregroundColor: Colors.black87, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          child: Text(StatActions.getLabel(actionId), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          onPressed: isEnabled
+              ? () {
+                  if (actionId == 'FT') {
+                    _recordFreeThrow();
+                  } else {
+                    _saveStatToDB(statType: actionId);
+                  }
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            backgroundColor: isPrimary ? Colors.deepOrange.shade100 : Colors.grey.shade200,
+            foregroundColor: Colors.black87,
+            disabledBackgroundColor: Colors.grey.shade100,
+            disabledForegroundColor: Colors.grey.shade400,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          ),
+          child: Text(
+            StatActions.getLabel(actionId),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isEnabled ? Colors.black87 : Colors.grey.shade400,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
     );
