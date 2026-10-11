@@ -543,17 +543,17 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
               children: [
                 Row(
                   children: [
-                    _buildStatBtn('FT', isPrimary: true),
+                    _buildStatBtn('FT'),
+                    _buildStatBtn('PF'),
                     _buildStatBtn('REB'),
-                    _buildStatBtn('AST'),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
+                    _buildStatBtn('AST'),
                     _buildStatBtn('STL'),
                     _buildStatBtn('TO'),
-                    _buildStatBtn('PF'),
                   ],
                 ),
               ],
@@ -597,9 +597,20 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     );
   }
 
-  Widget _buildStatBtn(String actionId, {bool isPrimary = false}) {
+  Widget _buildStatBtn(String actionId) {
     final settings = Provider.of<AppSettingsProvider>(context);
     final isEnabled = settings.isActionEnabled(actionId);
+
+    Color bgColor = Colors.grey.shade200;
+    Color textColor = Colors.black87;
+
+    if (actionId == 'FT') {
+      bgColor = Colors.green.shade100;
+      textColor = Colors.green.shade900;
+    } else if (actionId == 'PF') {
+      bgColor = Colors.red.shade100;
+      textColor = Colors.red.shade900;
+    }
 
     return Expanded(
       child: Padding(
@@ -616,8 +627,8 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
               : null,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            backgroundColor: isPrimary ? Colors.deepOrange.shade100 : Colors.grey.shade200,
-            foregroundColor: Colors.black87,
+            backgroundColor: bgColor,
+            foregroundColor: textColor,
             disabledBackgroundColor: Colors.grey.shade100,
             disabledForegroundColor: Colors.grey.shade400,
             elevation: 0,
@@ -628,7 +639,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 13,
-              color: isEnabled ? Colors.black87 : Colors.grey.shade400,
+              color: isEnabled ? textColor : Colors.grey.shade400,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
