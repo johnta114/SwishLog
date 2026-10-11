@@ -490,6 +490,27 @@ class DatabaseHelper {
     await db.delete('opponent_scores', where: 'id = ?', whereArgs: [id]);
   }
 
+  // 全試合データ（試合・スタッツ・相手得点）を削除
+  Future<void> deleteAllGames() async {
+    final db = await instance.database;
+    await db.delete('opponent_scores');
+    await db.delete('stats');
+    await db.delete('games');
+  }
+
+  // アプリ内の全データを削除（初期化）
+  Future<void> resetAllData() async {
+    final db = await instance.database;
+    await db.delete('opponent_scores');
+    await db.delete('stats');
+    await db.delete('games');
+    await db.delete('rosters');
+    await db.delete('players');
+    await db.delete('opponent_players');
+    await db.delete('opponent_teams');
+    await db.delete('seasons');
+  }
+
   Future close() async {
     final db = await instance.database;
     db.close();

@@ -70,4 +70,13 @@ class AppSettingsProvider extends ChangeNotifier {
     await prefs.setStringList('enabledActions', _enabledActions);
     notifyListeners();
   }
+
+  Future<void> resetAllSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('activeSeasonId');
+    _activeSeasonId = null;
+    _enabledActions = List.from(configurableActions);
+    await prefs.remove('enabledActions');
+    notifyListeners();
+  }
 }
