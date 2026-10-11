@@ -658,9 +658,20 @@ class CourtPainter extends CustomPainter {
     path3p.lineTo(mToPx(14.1, 0).dx, mToPx(14.1, 0).dy);
     canvas.drawPath(path3p, paintLine);
 
-    for (var log in logs.where((e) => (e.actionId == '2P' || e.actionId == '3P') && e.x != null && e.y != null)) {
-      final dotPaint = Paint()..color = log.isMade == true ? Colors.deepOrange : Colors.grey..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(log.x! * size.width, log.y! * size.height), 6.0, dotPaint);
+    // 直前のシュート位置のみを表示
+    final shots = logs.where((e) => (e.actionId == '2P' || e.actionId == '3P') && e.x != null && e.y != null);
+    if (shots.isNotEmpty) {
+      final lastShot = shots.last;
+      final dotPaint = Paint()
+        ..color = (lastShot.isMade == true ? Colors.deepOrange : Colors.grey)
+        ..style = PaintingStyle.fill;
+      final strokePaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      final center = Offset(lastShot.x! * size.width, lastShot.y! * size.height);
+      canvas.drawCircle(center, 7.0, dotPaint);
+      canvas.drawCircle(center, 7.0, strokePaint);
     }
   }
 
