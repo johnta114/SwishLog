@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
@@ -23,6 +24,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   List<Map<String, dynamic>> _roster = [];
   String? _youtubeUrl;
   String? _selectedPlayerForChart;
+  bool _isU12 = false;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     if (widget.gameId != null) {
       final gameData = await DatabaseHelper.instance.getGameById(widget.gameId!);
       _youtubeUrl = gameData?['video_url'];
+      _isU12 = gameData?['is_u12'] == 1;
       if (gameData != null && gameData['season_id'] != null) {
         _roster = await DatabaseHelper.instance.getRosterForSeason(gameData['season_id'].toString());
       }
@@ -414,6 +417,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
       builder: (context) => _EditStatDialog(
         stat: stat,
         roster: _roster,
+        isU12: _isU12,
         onSave: (String statId, Map<String, dynamic> updatedData) async {
           await DatabaseHelper.instance.updateStat(statId, updatedData);
           if (widget.gameId != null) {
@@ -550,9 +554,10 @@ class AnalysisCourtPainter extends CustomPainter {
 class _EditStatDialog extends StatefulWidget {
   final Map<String, dynamic> stat;
   final List<Map<String, dynamic>> roster;
+  final bool isU12;
   final Function(String, Map<String, dynamic>) onSave;
 
-  const _EditStatDialog({required this.stat, required this.roster, required this.onSave});
+  const _EditStatDialog({required this.stat, required this.roster, this.isU12 = false, required this.onSave});
 
   @override
   State<_EditStatDialog> createState() => _EditStatDialogState();
@@ -648,9 +653,23 @@ class _EditStatDialogState extends State<_EditStatDialog> {
                   decoration: const BoxDecoration(color: Color(0xFFF6E8D7), border: Border(bottom: BorderSide(color: Colors.black54, width: 2))),
                   child: GestureDetector(
                     onTapDown: (details) {
+                      final double dx = details.localPosition.dx / 250;
+                      final double dy = details.localPosition.dy / (250 * (14.0 / 15.0));
+
+                      final double x_m = dx * 15.0;
+                      final double y_m = dy * 14.0;
+                      final double distance = sqrt(pow(x_m - 7.5, 2) + pow(y_m - 1.575, 2));
+                      final bool is3P = !widget.isU12 && (
+                        (y_m < 2.99 && (x_m <= 0.9 || x_m >= 14.1)) ||
+                        (y_m >= 2.99 && distance >= 6.75)
+                      );
+
                       setState(() {
-                        _posX = details.localPosition.dx / 250;
-                        _posY = details.localPosition.dy / (250 * (14.0 / 15.0));
+                        _posX = dx;
+                        _posY = dy;
+                        if (_action == '2P' || _action == '3P') {
+                          _action = is3P ? '3P' : '2P';
+                        }
                       });
                     },
                     child: CustomPaint(

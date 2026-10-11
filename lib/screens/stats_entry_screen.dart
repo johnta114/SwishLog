@@ -328,7 +328,10 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
     final double x_m = dx * 15.0;
     final double y_m = dy * 14.0;
     final double distance = sqrt(pow(x_m - 7.5, 2) + pow(y_m - 1.575, 2));
-    final bool is3P = !_isU12 && distance >= 6.75 && y_m >= 2.99;
+    final bool is3P = !_isU12 && (
+      (y_m < 2.99 && (x_m <= 0.9 || x_m >= 14.1)) ||
+      (y_m >= 2.99 && distance >= 6.75)
+    );
     final String statType = is3P ? '3P' : '2P';
 
     showModalBottomSheet(
