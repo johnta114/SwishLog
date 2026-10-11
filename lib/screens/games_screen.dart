@@ -455,12 +455,13 @@ class _GamesScreenState extends State<GamesScreen> {
                                   onTap: () async {
                                     final status = game['status'] ?? 'completed';
                                     if (status == 'completed') {
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => GameAnalyticsScreen(gameId: game['id'].toString(), gameTitle: 'vs ${game['opponent']}')));
+                                      await Navigator.push(context, MaterialPageRoute(builder: (context) => GameAnalyticsScreen(gameId: game['id'].toString(), gameTitle: 'vs ${game['opponent']}')));
+                                      if (mounted) _loadData();
                                     } else if (status == 'in_progress') {
                                       final starters = _activeRoster.take(5).toList();
                                       final bench = _activeRoster.skip(5).toList();
                                       await Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: starters, bench: bench)));
-                                      _loadData();
+                                      if (mounted) _loadData();
                                     } else {
                                       _showStarterSelectionModal(game);
                                     }

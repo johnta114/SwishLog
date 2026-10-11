@@ -746,7 +746,6 @@ class _SeasonRosterScreenState extends State<SeasonRosterScreen> {
                                 ),
                                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                 subtitle: Text('ポジション: $position', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                trailing: const Icon(Icons.arrow_back_ios, size: 12, color: Colors.grey),
                               ),
                             ),
                           );

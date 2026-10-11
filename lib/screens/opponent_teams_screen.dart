@@ -211,40 +211,78 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
                                     ),
                                   ],
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade200),
-                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-                                    ),
-                                    child: Row(
+                                child: Card(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  elevation: 0,
+                                  color: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(color: Colors.grey.shade200),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                    child: ExpansionTile(
+                                      backgroundColor: Colors.white,
+                                      collapsedBackgroundColor: Colors.white,
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.blueGrey.shade100,
+                                        child: const Icon(Icons.shield, color: Colors.blueGrey),
+                                      ),
+                                      title: Text(
+                                        opp['name'] ?? '',
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                      ),
+                                      subtitle: Row(
+                                        children: [
+                                          const Icon(Icons.location_on, size: 14, color: Colors.redAccent),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            (opp['prefecture'] != null && opp['prefecture'].toString().isNotEmpty)
+                                                ? opp['prefecture'].toString()
+                                                : '未設定',
+                                            style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
                                       children: [
-                                        CircleAvatar(
-                                          backgroundColor: Colors.blueGrey.shade100,
-                                          child: const Icon(Icons.shield, color: Colors.blueGrey),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
+                                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                                        Padding(
+                                          padding: const EdgeInsets.all(16.0),
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(opp['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                              const SizedBox(height: 4),
                                               Row(
                                                 children: [
-                                                  const Icon(Icons.location_on, size: 14, color: Colors.redAccent),
-                                                  const SizedBox(width: 4),
-                                                  Text(opp['prefecture'] ?? '未設定', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                  const Icon(Icons.contact_phone, size: 16, color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    (opp['coach_contact'] != null && opp['coach_contact'].toString().isNotEmpty)
+                                                        ? opp['coach_contact'].toString()
+                                                        : '連絡先未登録',
+                                                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Icon(Icons.notes, size: 16, color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      (opp['notes'] != null && opp['notes'].toString().isNotEmpty)
+                                                          ? opp['notes'].toString()
+                                                          : 'メモはありません。',
+                                                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                                       ],
                                     ),
                                   ),
