@@ -331,10 +331,10 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(width: 12, height: 12, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.deepOrange)),
-                    const SizedBox(width: 4), const Text("Made", style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4), const Text("成功", style: TextStyle(fontSize: 12)),
                     const SizedBox(width: 16),
                     Container(width: 12, height: 12, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey)),
-                    const SizedBox(width: 4), const Text("Miss", style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4), const Text("失敗", style: TextStyle(fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 16),
