@@ -20,7 +20,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -37,6 +37,10 @@ class DatabaseHelper {
       try { await db.execute("ALTER TABLE games ADD COLUMN status TEXT DEFAULT 'not_started'"); } catch (_) {}
       try { await db.execute("ALTER TABLE games ADD COLUMN my_score INTEGER DEFAULT 0"); } catch (_) {}
       try { await db.execute("ALTER TABLE games ADD COLUMN opp_score INTEGER DEFAULT 0"); } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try { await db.execute("ALTER TABLE games ADD COLUMN starter_player_ids TEXT"); } catch (_) {}
+      try { await db.execute("ALTER TABLE games ADD COLUMN current_player_ids TEXT"); } catch (_) {}
     }
   }
 
@@ -119,6 +123,8 @@ class DatabaseHelper {
       opp_score_q4 INTEGER DEFAULT 0,
       opp_score_ot INTEGER DEFAULT 0,
       video_url TEXT,
+      starter_player_ids TEXT,
+      current_player_ids TEXT,
       FOREIGN KEY (season_id) REFERENCES seasons (id) ON DELETE CASCADE,
       FOREIGN KEY (opponent_team_id) REFERENCES opponent_teams (id) ON DELETE CASCADE
     )
@@ -362,6 +368,21 @@ class DatabaseHelper {
   Future<int> updateGameStatus(String gameId, String status) async {
     final db = await instance.database;
     return await db.update('games', {'status': status}, where: 'id = ?', whereArgs: [gameId]);
+  }
+
+  Future<int> updateGameStarters(String gameId, String starterPlayerIds) async {
+    final db = await instance.database;
+    return await db.update('games', {
+      'starter_player_ids': starterPlayerIds,
+      'current_player_ids': starterPlayerIds,
+    }, where: 'id = ?', whereArgs: [gameId]);
+  }
+
+  Future<int> updateGameCurrentPlayers(String gameId, String currentPlayerIds) async {
+    final db = await instance.database;
+    return await db.update('games', {
+      'current_player_ids': currentPlayerIds,
+    }, where: 'id = ?', whereArgs: [gameId]);
   }
 
   Future<void> updateGame(String id, Map<String, dynamic> gameData) async {

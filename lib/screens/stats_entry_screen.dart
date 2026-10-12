@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
+import 'dart:convert';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
 import '../providers/app_settings_provider.dart';
@@ -243,6 +244,10 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                         _benchPlayers.add(playerOut);
                         if (_selectedPlayer['player_id'] == playerOut['player_id']) _selectedPlayer = p;
                       });
+
+                      final activeIds = _activePlayers.map((player) => player['player_id'].toString()).toList();
+                      await DatabaseHelper.instance.updateGameCurrentPlayers(widget.gameId, jsonEncode(activeIds));
+
                       if (mounted) Navigator.pop(context);
                     },
                   )).toList(),

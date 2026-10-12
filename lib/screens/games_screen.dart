@@ -82,15 +82,37 @@ class _GamesScreenState extends State<GamesScreen> {
     });
   }
 
-  void _showStarterSelectionModal(Map<String, dynamic> game) {
+  void _showStarterSelectionModal(Map<String, dynamic> game) async {
+    final gameSeasonId = game['season_id']?.toString() ?? _activeSeasonId;
+    final List<Map<String, dynamic>> roster = gameSeasonId != null 
+        ? await DatabaseHelper.instance.getRosterForSeason(gameSeasonId)
+        : _activeRoster;
+
+    if (!mounted) return;
+
     List<Map<String, dynamic>> selectedStarters = [];
 
+    // 既にスタメンが設定されている場合（再選択時など）は復元
+    final rawIds = game['starter_player_ids'] ?? game['current_player_ids'];
+    if (rawIds != null && (rawIds as String).isNotEmpty) {
+      try {
+        final List<dynamic> decoded = jsonDecode(rawIds);
+        final List<String> ids = decoded.map((e) => e.toString()).toList();
+        selectedStarters = roster.where((p) => ids.contains(p['player_id'].toString())).toList();
+      } catch (_) {
+        final List<String> ids = (rawIds as String).split(',');
+        selectedStarters = roster.where((p) => ids.contains(p['player_id'].toString())).toList();
+      }
+    }
+
+    final parentContext = context;
+
     showModalBottomSheet(
-      context: context,
+      context: parentContext,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (bottomSheetContext) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalContext, setModalState) {
             return SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -101,18 +123,18 @@ class _GamesScreenState extends State<GamesScreen> {
                     const SizedBox(height: 8),
                     Text("現在 ${selectedStarters.length} 名選択中", style: TextStyle(color: selectedStarters.length == 5 ? Colors.deepOrange : Colors.grey, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    _activeRoster.isEmpty 
+                    roster.isEmpty 
                       ? const Padding(padding: EdgeInsets.all(16), child: Text('このシーズンの登録選手がいません。\nチーム管理から追加してください。', textAlign: TextAlign.center))
                       : Wrap(
                           spacing: 12, runSpacing: 12,
-                          children: _activeRoster.map((player) {
-                            final isSelected = selectedStarters.any((p) => p['player_id'] == player['player_id']);
+                          children: roster.map((player) {
+                            final isSelected = selectedStarters.any((p) => p['player_id'].toString() == player['player_id'].toString());
                             final name = (player['court_name'] ?? player['last_name']) as String;
                             return GestureDetector(
                               onTap: () {
                                 setModalState(() {
                                   if (isSelected) {
-                                    selectedStarters.removeWhere((p) => p['player_id'] == player['player_id']);
+                                    selectedStarters.removeWhere((p) => p['player_id'].toString() == player['player_id'].toString());
                                   } else {
                                     if (selectedStarters.length < 5) selectedStarters.add(player);
                                   }
@@ -127,18 +149,13 @@ class _GamesScreenState extends State<GamesScreen> {
                                   border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400, width: 2),
                                   boxShadow: isSelected ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : [],
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : Colors.black87,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  name,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             );
@@ -147,15 +164,28 @@ class _GamesScreenState extends State<GamesScreen> {
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: selectedStarters.length == 5 ? () async {
-                        Navigator.pop(context);
-                        
-                        // ステータスを「記録中」に更新
-                        await DatabaseHelper.instance.updateGameStatus(game['id'].toString(), 'in_progress');
-                        await _loadData();
+                        // モーダルを閉じる
+                        Navigator.pop(bottomSheetContext);
 
-                        final bench = _activeRoster.where((p) => !selectedStarters.contains(p)).toList();
-                        await Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: selectedStarters, bench: bench)));
-                        _loadData();
+                        final starterIds = selectedStarters.map((p) => p['player_id'].toString()).toList();
+                        
+                        // SQLiteにスタメンとステータスを保存
+                        await DatabaseHelper.instance.updateGameStarters(game['id'].toString(), jsonEncode(starterIds));
+                        await DatabaseHelper.instance.updateGameStatus(game['id'].toString(), 'in_progress');
+
+                        final bench = roster.where((p) => !starterIds.contains(p['player_id'].toString())).toList();
+
+                        if (mounted) {
+                          await Navigator.push(parentContext, MaterialPageRoute(
+                            builder: (context) => StatsEntryScreen(
+                              gameId: game['id'].toString(),
+                              opponentName: game['opponent'],
+                              starters: selectedStarters,
+                              bench: bench,
+                            ),
+                          ));
+                          _loadData();
+                        }
                       } : null,
                       style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), backgroundColor: Colors.deepOrange),
                       child: const Text('試合開始（記録へ）', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -458,10 +488,38 @@ class _GamesScreenState extends State<GamesScreen> {
                                       await Navigator.push(context, MaterialPageRoute(builder: (context) => GameAnalyticsScreen(gameId: game['id'].toString(), gameTitle: 'vs ${game['opponent']}')));
                                       if (mounted) _loadData();
                                     } else if (status == 'in_progress') {
-                                      final starters = _activeRoster.take(5).toList();
-                                      final bench = _activeRoster.skip(5).toList();
-                                      await Navigator.push(context, MaterialPageRoute(builder: (context) => StatsEntryScreen(gameId: game['id'].toString(), opponentName: game['opponent'], starters: starters, bench: bench)));
-                                      if (mounted) _loadData();
+                                      final gameSeasonId = game['season_id']?.toString() ?? _activeSeasonId;
+                                      final roster = gameSeasonId != null 
+                                          ? await DatabaseHelper.instance.getRosterForSeason(gameSeasonId)
+                                          : _activeRoster;
+                                      
+                                      List<String> activeIds = [];
+                                      final rawIds = game['current_player_ids'] ?? game['starter_player_ids'];
+                                      if (rawIds != null && (rawIds as String).isNotEmpty) {
+                                        try {
+                                          final List<dynamic> decoded = jsonDecode(rawIds);
+                                          activeIds = decoded.map((e) => e.toString()).toList();
+                                        } catch (_) {
+                                          activeIds = (rawIds as String).split(',');
+                                        }
+                                      }
+
+                                      final activePlayers = roster.where((p) => activeIds.contains(p['player_id'].toString())).toList();
+                                      
+                                      if (activePlayers.length == 5) {
+                                        final bench = roster.where((p) => !activeIds.contains(p['player_id'].toString())).toList();
+                                        await Navigator.push(context, MaterialPageRoute(
+                                          builder: (context) => StatsEntryScreen(
+                                            gameId: game['id'].toString(),
+                                            opponentName: game['opponent'],
+                                            starters: activePlayers,
+                                            bench: bench,
+                                          ),
+                                        ));
+                                        if (mounted) _loadData();
+                                      } else {
+                                        _showStarterSelectionModal(game);
+                                      }
                                     } else {
                                       _showStarterSelectionModal(game);
                                     }
