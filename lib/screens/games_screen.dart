@@ -8,6 +8,7 @@ import 'stats_entry_screen.dart';
 import '../database/database_helper.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../main.dart';
+import '../utils/prefectures.dart';
 
 class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});
@@ -244,7 +245,7 @@ class _GamesScreenState extends State<GamesScreen> {
     String? selectedOpponentId = isEdit ? game['opponent_team_id']?.toString() : null;
     String? selectedSeasonId = isEdit ? game['season_id']?.toString() : _activeSeasonId;
     final newOpponentCtrl = TextEditingController();
-    final prefCtrl = TextEditingController();
+    String? newOpponentPref;
     final dateCtrl = TextEditingController(text: isEdit ? game['date'] : DateTime.now().toString().split(' ')[0]);
     bool isU12 = isEdit ? (game['is_u12'] == 1) : false;
 
@@ -307,9 +308,33 @@ class _GamesScreenState extends State<GamesScreen> {
                       onSelected: (val) => setModalState(() => selectedOpponentId = val),
                     ),
                   ] else ...[
-                    TextField(controller: newOpponentCtrl, decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: '対戦相手チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    TextField(controller: newOpponentCtrl, decoration: const InputDecoration(label: Text.rich(TextSpan(children: [TextSpan(text: '対戦相手チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     const SizedBox(height: 12),
-                    TextField(controller: prefCtrl, decoration: const InputDecoration(labelText: '都道府県 (任意)', border: OutlineInputBorder())),
+                    DropdownButtonFormField<String>(
+                      value: newOpponentPref ?? '',
+                      isExpanded: true,
+                      menuMaxHeight: 350,
+                      decoration: const InputDecoration(
+                        labelText: '都道府県 (任意)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('未設定', style: TextStyle(color: Colors.grey)),
+                        ),
+                        ...japanPrefectures.map((pref) => DropdownMenuItem<String>(
+                          value: pref,
+                          child: Text(pref),
+                        )),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() {
+                          newOpponentPref = (val == null || val.isEmpty) ? null : val;
+                        });
+                      },
+                    ),
                   ],
                   
                   const SizedBox(height: 16),
@@ -362,7 +387,7 @@ class _GamesScreenState extends State<GamesScreen> {
                         // SQLiteに対戦相手を新規登録
                         targetOpponentId = await DatabaseHelper.instance.insertOpponentTeam({
                           'name': newOpponentCtrl.text,
-                          'prefecture': prefCtrl.text.isEmpty ? '未設定' : prefCtrl.text,
+                          'prefecture': newOpponentPref ?? '未設定',
                           'coach_contact': '',
                           'notes': '',
                         });

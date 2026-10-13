@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../main.dart';
+import '../utils/prefectures.dart';
 
 class OpponentTeamsScreen extends StatefulWidget {
   const OpponentTeamsScreen({super.key});
@@ -42,71 +43,107 @@ class _OpponentTeamsScreenState extends State<OpponentTeamsScreen> {
   void _showOpponentModal([Map<String, dynamic>? opponent]) {
     final isEdit = opponent != null;
     final nameCtrl = TextEditingController(text: isEdit ? opponent['name'] : '');
-    final prefCtrl = TextEditingController(text: isEdit ? opponent['prefecture'] : '');
+    String? selectedPref = isEdit ? normalizePrefecture(opponent['prefecture']) : null;
     final contactCtrl = TextEditingController(text: isEdit ? opponent['coach_contact'] : '');
     final notesCtrl = TextEditingController(text: isEdit ? opponent['notes'] : '');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(isEdit ? '対戦相手の編集' : '対戦相手の新規登録', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(label: const Text.rich(TextSpan(children: [TextSpan(text: 'チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final effectivePref = selectedPref ?? '';
+            final prefItems = [
+              '',
+              ...japanPrefectures,
+              if (selectedPref != null && selectedPref!.isNotEmpty && !japanPrefectures.contains(selectedPref))
+                selectedPref!,
+            ];
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(isEdit ? '対戦相手の編集' : '対戦相手の新規登録', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(label: Text.rich(TextSpan(children: [TextSpan(text: 'チーム名 '), TextSpan(text: '*', style: TextStyle(color: Colors.red))])), border: OutlineInputBorder()),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: effectivePref,
+                      isExpanded: true,
+                      menuMaxHeight: 350,
+                      decoration: const InputDecoration(
+                        labelText: '都道府県',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                      items: prefItems.map((pref) {
+                        return DropdownMenuItem<String>(
+                          value: pref,
+                          child: Text(
+                            pref.isEmpty ? '未設定' : pref,
+                            style: TextStyle(
+                              color: pref.isEmpty ? Colors.grey : Colors.black87,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setModalState(() {
+                          selectedPref = (val == null || val.isEmpty) ? null : val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: contactCtrl,
+                      decoration: const InputDecoration(labelText: '監督の連絡先', border: OutlineInputBorder(), prefixIcon: Icon(Icons.contact_phone)),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesCtrl,
+                      maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'チームの特徴・メモ', border: OutlineInputBorder(), alignLabelWithHint: true),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (nameCtrl.text.isEmpty) return;
+                        
+                        final data = {
+                          'name': nameCtrl.text,
+                          'prefecture': selectedPref ?? '',
+                          'coach_contact': contactCtrl.text,
+                          'notes': notesCtrl.text,
+                        };
+                        if (isEdit) {
+                          await DatabaseHelper.instance.updateOpponentTeam(opponent['id'].toString(), data);
+                        } else {
+                          await DatabaseHelper.instance.insertOpponentTeam(data);
+                        }
+                        
+                        // 保存が完了したらリストを再読み込みして閉じる
+                        await _loadOpponents();
+                        if (mounted) Navigator.pop(modalContext);
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      child: const Text('保存する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: prefCtrl,
-                decoration: const InputDecoration(labelText: '都道府県', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contactCtrl,
-                decoration: const InputDecoration(labelText: '監督の連絡先', border: OutlineInputBorder(), prefixIcon: Icon(Icons.contact_phone)),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'チームの特徴・メモ', border: OutlineInputBorder(), alignLabelWithHint: true),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  if (nameCtrl.text.isEmpty) return;
-                  
-                  final data = {
-                    'name': nameCtrl.text,
-                    'prefecture': prefCtrl.text,
-                    'coach_contact': contactCtrl.text,
-                    'notes': notesCtrl.text,
-                  };
-                  if (isEdit) {
-                    await DatabaseHelper.instance.updateOpponentTeam(opponent['id'].toString(), data);
-                  } else {
-                    await DatabaseHelper.instance.insertOpponentTeam(data);
-                  }
-                  
-                  // 保存が完了したらリストを再読み込みして閉じる
-                  await _loadOpponents();
-                  if (mounted) Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('保存する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         );
-      }
+      },
     );
   }
 
