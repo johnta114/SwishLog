@@ -18,12 +18,14 @@ class DatabaseHelper {
     final dbPath = await getApplicationDocumentsDirectory();
     final path = join(dbPath.path, filePath);
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+    try { await db.execute("ALTER TABLE games ADD COLUMN current_quarter INTEGER DEFAULT 1"); } catch (_) {}
+    return db;
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -41,6 +43,9 @@ class DatabaseHelper {
     if (oldVersion < 4) {
       try { await db.execute("ALTER TABLE games ADD COLUMN starter_player_ids TEXT"); } catch (_) {}
       try { await db.execute("ALTER TABLE games ADD COLUMN current_player_ids TEXT"); } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      try { await db.execute("ALTER TABLE games ADD COLUMN current_quarter INTEGER DEFAULT 1"); } catch (_) {}
     }
   }
 
@@ -125,6 +130,7 @@ class DatabaseHelper {
       video_url TEXT,
       starter_player_ids TEXT,
       current_player_ids TEXT,
+      current_quarter INTEGER DEFAULT 1,
       FOREIGN KEY (season_id) REFERENCES seasons (id) ON DELETE CASCADE,
       FOREIGN KEY (opponent_team_id) REFERENCES opponent_teams (id) ON DELETE CASCADE
     )
@@ -375,6 +381,7 @@ class DatabaseHelper {
     return await db.update('games', {
       'starter_player_ids': starterPlayerIds,
       'current_player_ids': starterPlayerIds,
+      'current_quarter': 1,
     }, where: 'id = ?', whereArgs: [gameId]);
   }
 
@@ -382,6 +389,13 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.update('games', {
       'current_player_ids': currentPlayerIds,
+    }, where: 'id = ?', whereArgs: [gameId]);
+  }
+
+  Future<int> updateGameCurrentQuarter(String gameId, int currentQuarter) async {
+    final db = await instance.database;
+    return await db.update('games', {
+      'current_quarter': currentQuarter,
     }, where: 'id = ?', whereArgs: [gameId]);
   }
 

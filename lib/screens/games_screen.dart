@@ -125,43 +125,54 @@ class _GamesScreenState extends State<GamesScreen> {
                     const SizedBox(height: 16),
                     roster.isEmpty 
                       ? const Padding(padding: EdgeInsets.all(16), child: Text('このシーズンの登録選手がいません。\nチーム管理から追加してください。', textAlign: TextAlign.center))
-                      : Wrap(
-                          spacing: 12, runSpacing: 12,
-                          children: roster.map((player) {
-                            final isSelected = selectedStarters.any((p) => p['player_id'].toString() == player['player_id'].toString());
-                            final name = (player['court_name'] ?? player['last_name']) as String;
-                            return GestureDetector(
-                              onTap: () {
-                                setModalState(() {
-                                  if (isSelected) {
-                                    selectedStarters.removeWhere((p) => p['player_id'].toString() == player['player_id'].toString());
-                                  } else {
-                                    if (selectedStarters.length < 5) selectedStarters.add(player);
-                                  }
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? Colors.deepOrange : Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400, width: 2),
-                                  boxShadow: isSelected ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : [],
-                                ),
-                                child: Text(
-                                  name,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : Colors.black87,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height * 0.5,
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: roster.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final player = roster[index];
+                              final isSelected = selectedStarters.any((p) => p['player_id'].toString() == player['player_id'].toString());
+                              final name = (player['court_name'] ?? player['last_name']) as String;
+                              return GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    if (isSelected) {
+                                      selectedStarters.removeWhere((p) => p['player_id'].toString() == player['player_id'].toString());
+                                    } else {
+                                      if (selectedStarters.length < 5) selectedStarters.add(player);
+                                    }
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.deepOrange : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400, width: 2),
+                                    boxShadow: isSelected ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : [],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      name,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black87,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                              );
+                            },
+                          ),
                         ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: selectedStarters.length == 5 ? () async {
                         // モーダルを閉じる

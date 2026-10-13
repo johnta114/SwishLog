@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 import '../utils/stat_actions.dart';
 import '../providers/app_settings_provider.dart';
@@ -94,6 +95,27 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
       // 時間順にソート
       loadedLogs.sort((a, b) => a.time.compareTo(b.time));
 
+      int maxQuarter = 1;
+      for (var s in rawStats) {
+        final q = (s['quarter'] as num?)?.toInt() ?? 1;
+        if (q > maxQuarter) maxQuarter = q;
+      }
+
+      int savedQuarter = 1;
+      if (thisGame['current_quarter'] != null) {
+        savedQuarter = (thisGame['current_quarter'] as num).toInt();
+      } else {
+        savedQuarter = maxQuarter;
+      }
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final prefQ = prefs.getInt('game_quarter_${widget.gameId}');
+        if (prefQ != null && prefQ > 0) {
+          savedQuarter = prefQ;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _myScore = (thisGame['my_score'] as int?) ?? 0;
@@ -101,6 +123,7 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
           _isU12 = (thisGame['is_u12'] == 1);
           _logs.clear();
           _logs.addAll(loadedLogs);
+          _currentQuarter = savedQuarter;
         });
       }
     } catch (e) {
@@ -258,6 +281,179 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
         );
       },
     );
+  }
+
+  Future<void> _promptQuarterChange(int targetQuarter) async {
+    if (targetQuarter == _currentQuarter) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("現在 ${targetQuarter == 5 ? 'OT' : '$targetQuarter Q'} です（交代は右下の交代ボタンから行えます）"),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
+    final allPlayers = [..._activePlayers, ..._benchPlayers];
+    if (allPlayers.length < 5) {
+      setState(() => _currentQuarter = targetQuarter);
+      await DatabaseHelper.instance.updateGameCurrentQuarter(widget.gameId, targetQuarter);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('game_quarter_${widget.gameId}', targetQuarter);
+      } catch (_) {}
+      return;
+    }
+
+    // 背番号順（なければコートネーム・姓順）にソート
+    allPlayers.sort((a, b) {
+      final numA = (a['jersey_number'] as num?) ?? 999;
+      final numB = (b['jersey_number'] as num?) ?? 999;
+      if (numA != numB) return numA.compareTo(numB);
+      final nameA = (a['court_name'] ?? a['last_name'] ?? '').toString();
+      final nameB = (b['court_name'] ?? b['last_name'] ?? '').toString();
+      return nameA.compareTo(nameB);
+    });
+
+    List<Map<String, dynamic>> selectedPlayers = List.from(_activePlayers);
+    final String quarterLabel = targetQuarter == 5 ? "OT" : "$targetQuarter Q";
+
+    final result = await showModalBottomSheet<List<Map<String, dynamic>>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bool isSameAsCurrent = selectedPlayers.length == _activePlayers.length &&
+                selectedPlayers.every((s) => _activePlayers.any((a) => a['player_id'].toString() == s['player_id'].toString()));
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$quarterLabel 開始メンバー選択 (5名)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: 'キャンセル',
+                          onPressed: () => Navigator.pop(modalContext, null),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      selectedPlayers.length == 5
+                          ? "現在 5 名選択中"
+                          : "あと ${5 - selectedPlayers.length} 名選択してください (${selectedPlayers.length}/5)",
+                      style: TextStyle(
+                        color: selectedPlayers.length == 5 ? Colors.deepOrange : Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.45,
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: allPlayers.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final player = allPlayers[index];
+                          final isSelected = selectedPlayers.any((p) => p['player_id'].toString() == player['player_id'].toString());
+                          final name = (player['court_name'] ?? player['last_name']) as String;
+                          return GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                if (isSelected) {
+                                  selectedPlayers.removeWhere((p) => p['player_id'].toString() == player['player_id'].toString());
+                                } else {
+                                  if (selectedPlayers.length < 5) selectedPlayers.add(player);
+                                }
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.deepOrange : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: isSelected ? Colors.deepOrange : Colors.grey.shade400, width: 2),
+                                boxShadow: isSelected ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : [],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  name,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: selectedPlayers.length == 5 ? () {
+                        Navigator.pop(modalContext, selectedPlayers);
+                      } : null,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: Colors.deepOrange,
+                      ),
+                      child: Text(
+                        isSameAsCurrent ? '現在のメンバーのまま $quarterLabel を開始' : '$quarterLabel を開始',
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && mounted) {
+      final newBench = allPlayers.where((p) => !result.any((s) => s['player_id'].toString() == p['player_id'].toString())).toList();
+      setState(() {
+        _currentQuarter = targetQuarter;
+        _activePlayers = List.from(result);
+        _benchPlayers = List.from(newBench);
+        if (!_activePlayers.any((p) => p['player_id'].toString() == _selectedPlayer['player_id']?.toString())) {
+          _selectedPlayer = _activePlayers.first;
+        }
+      });
+
+      final activeIds = _activePlayers.map((p) => p['player_id'].toString()).toList();
+      await DatabaseHelper.instance.updateGameCurrentPlayers(widget.gameId, jsonEncode(activeIds));
+      await DatabaseHelper.instance.updateGameCurrentQuarter(widget.gameId, targetQuarter);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('game_quarter_${widget.gameId}', targetQuarter);
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$quarterLabel を開始しました"),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveStatToDB({required String statType, bool? isMade, double? x, double? y}) async {
@@ -466,21 +662,49 @@ class _StatsEntryScreenState extends State<StatsEntryScreen> {
                 // クォーター切り替えUI
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [1, 2, 3, 4].map((q) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: ChoiceChip(
-                        label: Text("$q Q", style: const TextStyle(fontSize: 12)),
-                        selected: _currentQuarter == q,
-                        onSelected: (selected) {
-                          if (selected) setState(() => _currentQuarter = q);
-                        },
-                        selectedColor: Colors.deepOrange.shade100,
-                        showCheckmark: false,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )).toList(),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [1, 2, 3, 4, 5].map((q) {
+                        final bool isCurrent = _currentQuarter == q;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: GestureDetector(
+                            onTap: () => _promptQuarterChange(q),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isCurrent ? Colors.deepOrange : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isCurrent ? Colors.deepOrange : Colors.grey.shade300,
+                                  width: 1.5,
+                                ),
+                                boxShadow: isCurrent
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.deepOrange.withValues(alpha: 0.35),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                q == 5 ? "OT" : "$q Q",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                                  color: isCurrent ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               ],

@@ -255,6 +255,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
                 _buildFilterChip("3Q", 3),
                 const SizedBox(width: 8),
                 _buildFilterChip("4Q", 4),
+                const SizedBox(width: 8),
+                _buildFilterChip("OT", 5),
               ],
             ),
           ),
